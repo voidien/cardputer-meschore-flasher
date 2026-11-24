@@ -1,0 +1,4 @@
+{"t":"open","opts":{"baudRate":1200}}
+{"t":"sleep","ms":100}
+{"t":"close"}
+{"t":"sleep","ms":1500}

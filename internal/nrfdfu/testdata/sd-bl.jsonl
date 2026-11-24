@@ -1,0 +1,4 @@
+{"t":"open","opts":{"baudRate":115200}}
+{"t":"writer-close"}
+{"t":"close"}
+{"t":"error","message":"Cannot read properties of undefined (reading 'bin_file')"}

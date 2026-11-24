@@ -1,0 +1,9 @@
+{"t":"open","opts":{"baudRate":115200}}
+{"t":"write","len":28,"hex":"c0d14e01e003000000040000000000000000000000409c0000afccc0"}
+{"t":"sleep","ms":965.6765625}
+{"t":"write","len":28,"hex":"c0da4e01d7010000005200ffffffffffff0100b60036780000b357c0"}
+{"t":"read-timeout","ms":5000}
+{"t":"writer-close"}
+{"t":"close"}
+{"t":"error","message":"Read timeout"}
+{"t":"bootloader","start":{"mode":4,"sd":0,"bl":0,"app":40000},"wordSized":true}
