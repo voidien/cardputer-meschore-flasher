@@ -1,0 +1,28 @@
+[
+  {"version": "v1.2.0", "type": "repeater", "name": "Repeater v1.2.0", "notes": "Notes\r\nline two", "files": [
+    {"name": "XAnchored_repeater-v1.2.0-abcdef1.bin", "url": "/releases/download/repeater-v1.2.0/XAnchored_repeater-v1.2.0-abcdef1.bin"},
+    {"name": "XAnchored_repeater-v1.2.0-abcdef1-merged.bin", "url": "/releases/download/repeater-v1.2.0/XAnchored_repeater-v1.2.0-abcdef1-merged.bin"},
+    {"name": "Anchored_repeater-v1.2.0-abcdef1.bin.sig", "url": "/releases/download/repeater-v1.2.0/Anchored_repeater-v1.2.0-abcdef1.bin.sig"},
+    {"name": "Anchored_repeater-v1.2.0-abcdef1-merged.bin", "url": "/releases/download/repeater-v1.2.0/Anchored_repeater-v1.2.0-abcdef1-merged.bin"},
+    {"name": "Anchored_repeater-v1.2.0-abcdef1.bin", "url": "/releases/download/repeater-v1.2.0/Anchored_repeater-v1.2.0-abcdef1.bin"},
+    {"name": "Literal_repeater-v1.2.0-abcdef1-merged.bin", "url": "/releases/download/repeater-v1.2.0/Literal_repeater-v1.2.0-abcdef1-merged.bin"},
+    {"name": "Literal_repeater-v1.2.0-abcdef1.bin", "url": "/releases/download/repeater-v1.2.0/Literal_repeater-v1.2.0-abcdef1.bin"},
+    {"name": "Nordic_repeater-v1.2.0-abcdef1.zip", "url": "/releases/download/repeater-v1.2.0/Nordic_repeater-v1.2.0-abcdef1.zip"},
+    {"name": "Nordic_repeater-v1.2.0-abcdef1.uf2", "url": "/releases/download/repeater-v1.2.0/Nordic_repeater-v1.2.0-abcdef1.uf2"}]},
+  {"version": "10", "type": "repeater", "notes": "integer-like", "files": [
+    {"name": "Nordic_repeater-10-abcdef1.zip", "url": "/releases/download/repeater-10/Nordic_repeater-10-abcdef1.zip"}]},
+  {"version": "2", "type": "repeater", "files": [
+    {"name": "Nordic_repeater-2-abcdef1.zip", "url": "/releases/download/repeater-2/Nordic_repeater-2-abcdef1.zip"}]},
+  {"version": "v1.1.0", "type": "repeater", "notes": "first of two", "files": [
+    {"name": "Nordic_repeater-v1.1.0-abcdef1.zip", "url": "/releases/download/repeater-v1.1.0/Nordic_repeater-v1.1.0-abcdef1.zip"}]},
+  {"version": "v1.1.0", "type": "repeater", "notes": "second of two", "files": [
+    {"name": "Nordic_repeater-v1.1.0-1234567.zip", "url": "/releases/download/repeater-v1.1.0b/Nordic_repeater-v1.1.0-1234567.zip"}]},
+  {"type": "repeater", "notes": "no version", "files": [
+    {"url": "/releases/download/repeater-undefined/nameless.bin"},
+    {"name": "Weird_repeater-x-abcdef1.bin", "url": "/releases/download/repeater-x/Weird_repeater-x-abcdef1.bin"}]},
+  {"version": "v0.9", "files": [
+    {"name": "Untyped_repeater-v0.9-abcdef1-merged.bin", "url": "/releases/download/v0.9/Untyped_repeater-v0.9-abcdef1-merged.bin"},
+    {"name": "Untyped_repeater-v0.9-abcdef1.bin", "url": "/releases/download/v0.9/Untyped_repeater-v0.9-abcdef1.bin"}]},
+  {"version": "v1.2.0", "type": "companion", "files": [
+    {"name": "Nordic_companion-v1.2.0-abcdef1.zip", "url": "/releases/download/companion-v1.2.0/Nordic_companion-v1.2.0-abcdef1.zip"}]}
+]

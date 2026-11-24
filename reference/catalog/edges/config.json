@@ -1,0 +1,49 @@
+{
+  "staticPath": "/firmware",
+  "role": {
+    "repeater": {"title": "Repeater"},
+    "companionBle": {"title": "Companion", "subTitle": "Bluetooth"}
+  },
+  "notice": {"n": "<b>Board ${name}</b> uses ${bootloader}${missing}"},
+  "device": [
+    {"name": "Anchored", "type": "esp32", "maker": "x", "firmware": [
+      {"class": "community", "role": "repeater", "notice": "n", "github": {"type": "repeater", "files": {
+        "flash-wipe": "^Anchored_repeater-v1\\.2\\.0-abcdef1-merged\\.bin$",
+        "flash-update": "^Anchored_repeater-v1\\.2\\.0-abcdef1\\.bin$"}}}]},
+    {"name": "Literal", "type": "esp32", "firmware": [
+      {"class": "community", "role": "repeater", "github": {"type": "repeater", "files": {
+        "flash-update": "Literal_repeater-v1\\.2\\.0-abcdef1\\.bin",
+        "flash-wipe": "Literal_repeater-v1\\.2\\.0-abcdef1-merged\\.bin"}}}]},
+    {"name": "Nordic", "type": "nrf52", "erase": "FLASH_ERASE_nrf52_softdevice_v7.zip",
+      "bootloader": ["nordic_bootloader-OTAFIX.uf2", "nordic_bootloader-OTAFIX.zip"], "firmware": [
+      {"class": "community", "role": "repeater", "notice": "n", "github": {"type": "repeater", "files": {
+        "download": "Nordic_[rR]epeater.*?\\.uf2", "flash": "Nordic_[rR]epeater.*?\\.zip"}}},
+      {"class": "community", "role": "companionBle", "subTitle": "Own sub", "github": {"type": "companion",
+        "notice": "<article>Nested <a href='/x'>warning</a> for ${name}</article>",
+        "files": {"flash": "Nordic_companion.*?\\.zip"}}}]},
+    {"name": "Weird", "type": "esp32", "firmware": [
+      {"class": "community", "role": "repeater", "github": {"type": "repeater", "files": {
+        "flash-update": "^undefined$|Weird_"}}}]},
+    {"name": "Untyped", "type": "esp32", "firmware": [
+      {"class": "community", "role": "repeater", "github": {"files": {
+        "flash-wipe": "Untyped_repeater.*?-merged\\.bin", "flash-update": "Untyped_repeater.*?-[a-f0-9]{7}\\.bin"}}}]},
+    {"name": "Inline Order", "type": "esp32", "firmware": [
+      {"class": "ripple", "role": "gui", "title": "Own title", "version": {
+        "v2": {"notes": "two", "files": [
+          {"type": "flash-update", "name": "Inline-v2.bin", "title": "App v2"},
+          {"type": "flash-wipe", "name": "Inline-v2-merged.bin", "title": "Merged v2"}]},
+        "10": {"files": [
+          {"type": "flash-wipe", "name": "/firmware/Inline-10-merged.bin", "title": "Merged 10"},
+          {"type": "flash-update", "name": "/firmware/Inline-10.bin", "title": "App 10"}]},
+        "2": {"files": []},
+        "v1": {"files": [{"type": "download", "name": "Inline-v1.uf2", "title": "UF2 only"}]}}},
+      {"class": "community", "role": "repeater", "github": {"type": "nomatch", "files": {"flash-update": "Nothing"}},
+        "version": {"stale": {"files": [{"type": "flash-update", "name": "stale.bin", "title": "stale"}]}}}]},
+    {"name": "Source Without Files", "type": "esp32", "firmware": [
+      {"class": "community", "role": "repeater", "github": {"type": "repeater"}, "version": {"v0": {"files": [
+        {"type": "flash-update", "name": "Kept-v0.bin", "title": "kept"},
+        {"type": "flash-wipe", "name": "Kept-v0-merged.bin", "title": "kept merged"}]}}}]},
+    {"name": "Dropped", "type": "esp32", "firmware": [
+      {"class": "community", "role": "repeater", "github": {"type": "repeater", "files": {"flash-update": "NoSuchBoard"}}}]}
+  ]
+}
