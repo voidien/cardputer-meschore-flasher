@@ -90,22 +90,27 @@ enter choose  u update  c files  ? help
 ```
 
 With no board: "Plug a LoRa board into the USB-A port." With no catalog yet: "No catalog saved. Join Wi-Fi and press
-u." With no permission to open ports: the exact `sudo` command (9.3). A node that echoes what it's sent but answers
+u." With no permission to open ports: the exact `sudo` command (9.3). When more than three boards match a port's USB
+identity, the port says how many ("Could be one of 27 boards") rather than listing them. A node that echoes what it's sent but answers
 nothing (stuck in the middle of a command) says so: "press its reset button (or unplug it if it has no battery) and
 press r". The probe never sends anything that could change the node, not even the blank line that would unstick it.
 
-**Choose board.** The catalog's boards that match the USB identity first, then "All boards". The owner always picks;
-when exactly one matches it is preselected, never chosen for them.
+**Choose board.** The best matches first, then "All boards": the board the node itself names when it answers
+`board`; then the boards the USB table is sure of for this identity; then, under "Might also be (unverified)", the
+boards it only infers. Each group is in catalog order. The owner always picks. The cursor starts on the board picked
+last time for this USB serial number (remembered, 8), else on the only match when there is exactly one; it is never
+chosen for them.
 
 ```
 Which board is on ttyACM0?             87% ●
-Matches USB 2886:8044:
-▸ Seeed Studio Xiao nRF52 WIO
-  Ikoka Stick
-  Ikoka Nano
-  All 62 boards…
-
-
+The board says: Heltec V4
+▸ Heltec v4
+USB 303a:1001 also matches:
+  Heltec v3
+  Heltec Wireless Tracker
+  …
+Might also be (unverified):
+  LilyGo T3S3
 j/k move  enter pick  f find  ? help
 ```
 
@@ -189,7 +194,7 @@ r retry  esc back  ? help
 | Field | Default | Checks before sending |
 | --- | --- | --- |
 | Name | the node's current name, or empty | 1–23 bytes; none of `[ ] / \ : , ? *`; no leading or trailing space |
-| Radio | your messenger's settings when `~/.config/mesh/config.json` has them (8.4); otherwise the last radio meshflash sent; otherwise the node's current values. `p` lists MeshCore's presets (a copy built into meshflash, 7) and Manual | only the bandwidths the radio accepts (7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500 kHz); frequency within the firmware's range; SF 5–12; CR 5–8 |
+| Frequency, Bandwidth, Spreading factor, Coding rate (four rows) | your messenger's settings when `~/.config/mesh/config.json` has them (8.4); otherwise the last radio meshflash sent; otherwise the node's current values. Enter on Frequency opens a text box, on the other three a pick list of the allowed values. `p` lists MeshCore's presets (a copy built into meshflash, 7) and fills all four, and the path hash mode | only the bandwidths the radio accepts (7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500 kHz); frequency within the firmware's range; SF 5–12; CR 5–8 |
 | TX power | the node's current value | −9 dBm (the radio's minimum) up to the board's limit: MeshCore FAQ 7.7's values for amplified boards (Station G2, Ikoka E22-30S/33S, Heltec V4), 22 dBm for the rest; an Ikoka whose `board` reply and catalog name don't say which module it has gets 9, the safest of its modules |
 | Path hash mode | from the preset (size − 1), else the node's current value; 1, 2 or 3 bytes | firmware v1.14.0 or newer; the row says "needs v1.14+" otherwise |
 | Latitude, longitude | the node's current values; blank sends nothing | −90…90, −180…180 |
@@ -312,7 +317,7 @@ All files are the owner's (0600 in 0700 folders), under its own name (S2).
 
 | File | What |
 | --- | --- |
-| `~/.config/meshflash/config.json` | the last radio settings sent (frequency, bandwidth, SF, CR, TX power, path hash mode; never a password) |
+| `~/.config/meshflash/config.json` | the last radio settings sent (frequency, bandwidth, SF, CR, TX power, path hash mode; never a password), and the catalog board picked for each USB serial number (serial → board name, nothing else) |
 | `~/.config/meshflash/drafts.json` | an unsent setup form per board serial number, without passwords (S7) |
 | `~/.cache/meshflash/catalog/` | `config.json`, `config-zephcore.json` and each `releases-<key>.json`, as fetched, with the time |
 | `~/.cache/meshflash/files/` | each downloaded file under its catalog name, and `index.json`: name, URL, size, SHA-256, when |
@@ -361,7 +366,8 @@ Go 1.25, Bubble Tea v1, module `meshflash`. From the kit: `internal/screen` copi
 
 `make deploy HOST=CardPuter` copies the binary to `~/.local/bin/meshflash` (no `sudo`). `make install-desktop
 HOST=CardPuter` installs the home-screen entry "MeshFlash" (`Exec=/home/void/.local/bin/meshflash --screen`) and its
-100×100 icon `meshflash_100.png` (the owner runs it: `sudo`). The icon is drawn by code and shown to the owner first
+100×100 icon `meshflash_100.png` (the owner runs it: `sudo`): a green LoRa board with its antenna and a lightning bolt
+on its chip, on a teal tile (`packaging/make_icon.py`). The icon is drawn by code and shown to the owner first
 (S33).
 
 ### 9.3 Permissions
@@ -425,6 +431,14 @@ Asked as multiple choice with a recommendation first; answered 24 Nov 2026.
 | Licence | **MIT** |
 | User-Agent | **`Mozilla/5.0 (compatible; meshflash/<version>)`** (departs from S3's exact form) |
 | Device phase | **the owner runs the commands** and pastes back what they print |
+| Ikoka TX limit with no module named (Phase 1) | **9 dBm**, the safest of its modules |
+| ESP32 full wipe check (Phase 1) | **the catalog's `-merged.bin` name and the saved SHA-256** (no check inside the image, which could refuse ZephCore's) |
+| A node name containing the admin password (Phase 1) | **allowed**: the name is public anyway |
+| Ripple's release notes in test data (Phase 1) | **blanked**, and the branch history rewritten so they never appear |
+| Icon (Phase 2) | **A: a LoRa board with its antenna and a lightning bolt** |
+| A long board list (Phase 2) | **best matches first**: the board the node names, then sure USB matches, then "Might also be (unverified)" |
+| Remember the board (Phase 2) | **yes, per USB serial number**, preselected next time and still confirmed |
+| Radio on the Setup form (Phase 2) | **four rows**: Frequency, Bandwidth, Spreading factor, Coding rate |
 
 Decided without asking (technical defaults; the owner can overrule any):
 
@@ -459,3 +473,6 @@ Each phase ends with a report and a stop.
   header, the connect cap's numbers, the RTS pulse on failure, and only update-at-0x10000 or erase-plus-0x0 written;
   nRF52: the SoftDevice check enforced, only the exact ACK accepted, and a lost STOP ACK treated as "most likely
   worked".
+- 24 Nov 2026: the owner's Phase 1 and Phase 2 answers (11): Choose board's order and the remembered board, the
+  Board screen's count for long lists, four radio rows on the Setup form, the board picked per USB serial number saved
+  in `config.json`, and the icon.
