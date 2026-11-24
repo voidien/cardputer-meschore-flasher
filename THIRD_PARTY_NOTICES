@@ -4,7 +4,8 @@ meshflash carries or ports the following. Each keeps its own licence.
 1. MeshCore web flasher (flasher.meshcore.dev, commit 45a5257)
    Used for: the catalog resolution, file selection and flashing sequence that
    meshflash ports to Go (internal/catalog, internal/esp, internal/nrfdfu), and
-   the reference recordings in reference/.
+   the reference recordings in reference/. reference/nrf52/vendor/dfu.js is a
+   byte-for-byte copy of its lib/dfu.js, used only to record.
 
 MIT License
 
@@ -91,7 +92,8 @@ third_party/esptool-legacy-flasher-stub-v1.3.0/LICENSE.
 ================================================================================
 5. MeshCore (meshcore-dev/MeshCore)
    Used for: command strings, limits and tables from its code and docs
-   (internal/nodecli, internal/usbid).
+   (internal/nodecli, internal/usbid), and its console's float printing
+   (internal/nodecli/ftoa.go ports src/helpers/TxtDataHelpers.cpp ftoa/ftoa3).
 
 MIT License
 Copyright (c) 2025 Scott Powell / rippleradios.com
@@ -102,3 +104,53 @@ Copyright (c) 2025 Scott Powell / rippleradios.com
    A copy of the regional presets served by https://api.meshcore.nz/api/v1/config
    on 19 Nov 2026 (internal/nodecli). The list carries no stated licence; it is
    built in at the owner's choice so setup works offline.
+
+================================================================================
+7. MeshCore config tool (config.meshcore.io, commit aff42ad8)
+   Used for: the serial console's line protocol that internal/nodecli follows
+   (lib/serial-cli.js), its firmware version pattern (src/gui.js) and its
+   preset to path-hash-mode mapping. internal/nodecli/testdata/configtool/
+   record.mjs imports the tool from a checkout to record it; none of its code
+   is copied into this repository.
+
+MIT License
+Copyright (c) 2026 Rastislav Vysoky
+(Same terms as the MIT licence in section 1.)
+
+================================================================================
+8. zip.js 2.7.57 (Gildas Lormeau)
+   Used for: unzipping DFU packages when the web flasher's lib/dfu.js is
+   recorded in Node (reference/nrf52/vendor/zip.min.js, a byte-for-byte copy of
+   the flasher's lib/zip.min.js). It is not part of meshflash's binary, which
+   uses Go's archive/zip. Its inflate code is, in its own words, "based on
+   JZlib 1.0.2 ymnk, JCraft,Inc.", which is based on zlib 1.1.3 by Jean-loup
+   Gailly and Mark Adler.
+
+BSD 3-Clause License
+
+Copyright (c) 2023, Gildas Lormeau
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
