@@ -90,7 +90,9 @@ enter choose  u update  c files  ? help
 ```
 
 With no board: "Plug a LoRa board into the USB-A port." With no catalog yet: "No catalog saved. Join Wi-Fi and press
-u." With no permission to open ports: the exact `sudo` command (9.3).
+u." With no permission to open ports: the exact `sudo` command (9.3). A node that echoes what it's sent but answers
+nothing (stuck in the middle of a command) says so: "press its reset button (or unplug it if it has no battery) and
+press r". The probe never sends anything that could change the node, not even the blank line that would unstick it.
 
 **Choose board.** The catalog's boards that match the USB identity first, then "All boards". The owner always picks;
 when exactly one matches it is preselected, never chosen for them.
@@ -188,10 +190,10 @@ r retry  esc back  ? help
 | --- | --- | --- |
 | Name | the node's current name, or empty | 1–23 bytes; none of `[ ] / \ : , ? *`; no leading or trailing space |
 | Radio | your messenger's settings when `~/.config/mesh/config.json` has them (8.4); otherwise the last radio meshflash sent; otherwise the node's current values. `p` lists MeshCore's presets (a copy built into meshflash, 7) and Manual | only the bandwidths the radio accepts (7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500 kHz); frequency within the firmware's range; SF 5–12; CR 5–8 |
-| TX power | the node's current value | refused above the board's limit: MeshCore FAQ 7.7's values for amplified boards (Station G2, Ikoka E22-30S/33S, Heltec V4), 22 dBm for the rest |
+| TX power | the node's current value | −9 dBm (the radio's minimum) up to the board's limit: MeshCore FAQ 7.7's values for amplified boards (Station G2, Ikoka E22-30S/33S, Heltec V4), 22 dBm for the rest; an Ikoka whose `board` reply and catalog name don't say which module it has gets 9, the safest of its modules |
 | Path hash mode | from the preset (size − 1), else the node's current value; 1, 2 or 3 bytes | firmware v1.14.0 or newer; the row says "needs v1.14+" otherwise |
 | Latitude, longitude | the node's current values; blank sends nothing | −90…90, −180…180 |
-| Local advert | the node's current value: off, or every 60–240 minutes (the first setting saved turns off a new node's 2-minute local advert) | 0 or 60–240 |
+| Local advert | the node's current value: off, or every 60–240 minutes (the first setting saved turns off a new node's 2-minute local advert, so 1–59 shows as off) | 0, or 60–240 in even minutes (the node stores half the minutes and would round an odd value down) |
 | Admin password | empty: you must type one | 1–15 bytes, no leading or trailing space. Shown as `•`, never saved, never logged, cleared when the screen closes |
 | Guest password (room server only) | the node's current value | 1–15 bytes, always sent: a build's default is `hello` or blank, and a blank one lets anyone in |
 
@@ -199,9 +201,12 @@ r retry  esc back  ? help
 back and compares (numbers numerically); then `reboot`, waits for the board to come back, and checks `ver` and
 `get radio`. The screen lists each step with `✓` or what went wrong (the password line shows `••••`). Setup sends only
 commands the CLI reference documents for the firmware version it reads with `ver` (`docs/meshcore-flashing.md`
-§7.5).
+§7.5). When a step fails or the board goes away, the screen also says what the node is left with: nothing changed,
+the settings before that step saved (and this one perhaps), or everything saved but not rebooted, and whether it is
+still on its old radio until it restarts.
 
-**Update catalog** (`u`): "Fetching the catalog… (0:03)", then "70 boards, newest v1.18.0, 1.0 MB". On failure the
+**Update catalog** (`u`): "Fetching the catalog… (0:03)", then "72 boards, newest v1.18.0, 1.6 MB" (70 MeshCore
+boards and 2 that only ZephCore has). On failure the
 saved catalog stays and the screen says why (no Wi-Fi, HTTP status).
 
 **Saved files** (`c`): each saved file with its board, role, version, size and date; `x` deletes one after `y` (S20).
@@ -246,16 +251,26 @@ goes back (on Board, it quits); `?` is Help; Ctrl+C quits from anywhere (asking 
 
 As the web flasher does (esptool-js 0.5.4 in `flasher.meshcore.io`): reset into the ROM bootloader, SYNC, read the
 chip, upload the same flasher stub (Espressif's legacy stub v1.3.0, GPL-2.0-or-later: sent to the chip as data, its
-licence and source shipped in `third_party/`), compressed write at 115200 baud, then a hard reset. Departures, each changing only failures, not the bytes of a successful run, except the added MD5 check:
+licence and source shipped in `third_party/`), compressed write at 115200 baud, then a hard reset. A successful run
+sends the reference's bytes except in three places: the added MD5 check; fewer leading SYNCs (meshflash reads the
+whole boot banner first, the reference one byte of it); and the compressed data, which Go's `compress/zlib` packs
+differently from the reference's pako (the stub inflates either, and the tests feed the Go code pako's stream to
+compare the rest). The other departures change only failures:
 
 - **Verify:** SPI_FLASH_MD5 over what was written, compared with the file's MD5, before the reset (the reference never
   verifies).
-- **Chip guard:** stop when the chip read after SYNC isn't the board's chip.
-- Check every reply's status; cap the connect attempts (the reference effectively never gives up) and then ask the
-  owner to hold BOOT, press RESET and release BOOT; never drop bytes on a timeout.
+- **Chip guard:** stop when the chip read after SYNC isn't the chip the file's image header names (and the board's, where
+  meshflash knows it: the catalog says only "esp32" for every ESP32-family board), before the stub is uploaded. Only
+  the ESP32, ESP32-S3 and ESP32-C3 are flashed; other chips are named and refused.
+- Check every reply's status; cap the connect attempts (at most 4 resets, none started after 10 s; the reference
+  effectively never gives up) and then ask the owner to hold BOOT, press RESET and release BOOT; never drop bytes on a
+  timeout. On a failure after SYNC, pulse RTS so the board leaves its bootloader, as the reference does once writing
+  has started.
 - **Update** (`u`): the app `.bin` at 0x10000, no erase. **Full wipe** (`w`): erase the whole chip, then the
   `-merged.bin` at 0x0. The erase is tied to the merged image and is reset for every flash (the reference can leave
-  its "Erase device" box ticked and erase the chip under an app-only image).
+  its "Erase device" box ticked and erase the chip under an app-only image). No other pair is written: an image at 0x0
+  without the erase, an erase with an image anywhere else, or a merged image at 0x10000 is refused before the board
+  is touched, and so is an image bigger than the flash the board reports.
 
 ### 6.3 nRF52
 
@@ -264,13 +279,18 @@ As the web flasher does (`lib/dfu.js`, byte-identical to adafruit-nrfutil): the 
 
 - Check the ZIP before touching the board: manifest has only `application`; `firmware.bin` length a multiple of 4;
   the `.dat` init packet's device type is 0x0052 and its CRC-16 matches `firmware.bin`; its SoftDevice requirement
-  matches the board's (from the catalog).
+  matches the board's (from the catalog). Flashing refuses a package whose SoftDevice wasn't checked, because the
+  bootloader refusing it erases the app and can leave an OTAFIX board in Bluetooth DFU mode.
+- Count only the bootloader's exact 4-byte ACK as an answer, so a port that echoes (MeshCore's own console does) is
+  never taken for the bootloader.
 - Do the touch so it works on Linux (exclusive open, DTR dropped at 1200), then wait up to 10 s for the bootloader to
   appear with the same USB serial number, and send START only to a port positively identified as the bootloader
   ("nRF Serial"). A board already in its bootloader (double-pressed reset) is used without a touch.
 - Resend a frame (same sequence number) up to twice when its ACK doesn't come in 5 s; the bootloader drops duplicates.
 - After STOP, wait up to 15 s for the app to come back with the same serial number; on repeater and room-server
-  firmware, check `ver` names the version just flashed (the board's CRC failure is otherwise silent).
+  firmware, check `ver` names the version just flashed (the board's CRC failure is otherwise silent). When the port
+  goes away after STOP was sent but before its ACK arrived, the bootloader has most likely already started the new
+  app: say so, and wait and check `ver` the same way rather than reporting the app erased.
 - There's no full wipe on nRF52: the only way the catalog offers is its `erase` formatter, which meshflash never
   writes.
 
@@ -432,3 +452,10 @@ Each phase ends with a report and a stop.
 ## Changes to this spec
 
 - 24 Nov 2026: first version.
+- 24 Nov 2026, Phase 1 (the code wins): the Board screen's "stuck node" message and the probe never sending the blank
+  line that ends region-load mode (that line makes the node route with an empty regions table); TX power's −9 dBm floor
+  and 9 dBm for an Ikoka with no module named; the local advert in even minutes, 1–59 shown as off; Setup saying what
+  the node is left with after a failure; 72 boards in the merged catalog; ESP32: the chip guard against the image
+  header, the connect cap's numbers, the RTS pulse on failure, and only update-at-0x10000 or erase-plus-0x0 written;
+  nRF52: the SoftDevice check enforced, only the exact ACK accepted, and a lost STOP ACK treated as "most likely
+  worked".
