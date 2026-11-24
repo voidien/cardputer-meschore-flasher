@@ -9,15 +9,17 @@ Written 24 Nov 2026 from `docs/meshcore-flashing.md` (the research, every fact w
 app kit (`docs/standards.md` S1–S38, `docs/making-apps.md`, `docs/device.md` in the kit). Where this spec and the code
 disagree, the code wins: fix this file and add a line under "Changes to this spec".
 
-Choices marked **(asked)** are waiting on the owner; the recommended default is written in, and section 11 lists them.
+The owner's answers to the open choices (24 Nov 2026) are written in, and listed in section 11.
 
 ## 1. Goals and non-goals
 
 Goals:
 
-- Flash MeshCore companion (Bluetooth or USB), repeater and room-server firmware from the live catalog at
-  `https://flasher.meshcore.io`, onto ESP32-family boards (through the ROM bootloader over SLIP, with an MD5 check of
-  what was written) and nRF52 boards (Adafruit serial DFU from the catalog's ZIP, entered with the 1200-baud touch).
+- Flash MeshCore companion (Bluetooth or USB), repeater, room-server and KISS-modem firmware from the live catalog at
+  `https://flasher.meshcore.io`, ZephCore from its own catalog at `https://zephcore.meshcore.dev`, and Ripple's
+  builds marked "closed source, third-party", onto ESP32-family boards (through the ROM bootloader over SLIP, with an
+  MD5 check of what was written) and nRF52 boards (Adafruit serial DFU from the catalog's ZIP, entered with the
+  1200-baud touch).
 - Work offline in the field: the catalog and every downloaded file stay on the SD card, each with the SHA-256 taken
   when it was downloaded and checked again before every flash.
 - Set up a repeater or room server over its serial console: name, radio, TX power, path hash mode, admin password
@@ -30,22 +32,28 @@ Non-goals (for this version):
 
 - Writing anything the catalog lists besides the firmware: never the nRF52 `erase` formatter, never an OTAFIX or other
   `bootloader` file, never a custom file. (The ESP32 merged "full wipe" image is firmware: see 6.2.)
-- Ripple's closed-source GUI builds, ZephCore, MeshOS, and the RP2040/RP2350 "download only" boards **(asked)**.
-- Companion setup (companions are set up from the phone app), Bluetooth OTA, UF2 drag-and-drop, flashing over Wi-Fi.
+- Setup of anything but MeshCore repeater and room-server firmware: companions are set up from the phone app, and
+  KISS modem, Ripple and ZephCore builds have no text CLI that meshflash knows.
+- MeshOS (not in the live catalog) and the RP2040/RP2350 "download only" boards (no serial bootloader).
+- Bluetooth OTA, UF2 drag-and-drop, flashing over Wi-Fi.
 
 ## 2. What it talks to
 
 | What | When | How |
 | --- | --- | --- |
-| `https://flasher.meshcore.io/config.json` and `/releases?repo=github` | only when the owner presses `u` (update the catalog) | HTTPS GET, `User-Agent: meshflash/<version>` (S3) |
-| `https://flasher.meshcore.io/releases/download/<tag>/<file>?repo=github` (and `/firmware/<file>` for inline catalog files) | only when the owner presses `d` (download) or `y` on a file not yet saved | HTTPS GET, the same User-Agent. Refuse an HTML body, a body shorter than its `Content-Length`, or one under 50 KB |
-| `https://api.meshcore.nz/api/v1/config` (MeshCore's radio presets) **(asked)** | with the catalog update (`u`) | HTTPS GET; cached with the catalog |
+| `https://flasher.meshcore.io/config.json`, `/releases?repo=github` and `/releases?repo=github-ripple` | only when the owner presses `u` (update the catalog) | HTTPS GET, `User-Agent: Mozilla/5.0 (compatible; meshflash/<version>)` |
+| `https://zephcore.meshcore.dev/config-zephcore.json` and `/releases?repo=github-zephcore` | with the same `u` | the same |
+| The file's own site: `https://flasher.meshcore.io/releases/download/<tag>/<file>?repo=<key>` (or `/firmware/<file>` for files the catalog lists inline), or the same paths on `zephcore.meshcore.dev` for ZephCore | only when the owner presses `d` (download) or `y` on a file not yet saved | HTTPS GET, the same User-Agent. Refuse an HTML body, a body shorter than its `Content-Length`, or one under 50 KB |
+| `https://github.com/meshcore-dev/MeshCore/releases/download/<tag>/<file>` | only when the flasher site fails for a MeshCore community file | the same; GitHub's `Content-Length` and MD5 header are checked too |
 | The board | while a screen that needs it is open | `/dev/ttyACM*`, `/dev/ttyUSB*` (needs the `dialout` group, 9.3) |
 | USB identity | when the Board screen opens or redraws after a plug-in | `/sys/class/tty/*` and the USB device above it, read-only, never opening the port |
 | `~/.config/mesh/config.json` | when the setup form opens | read-only; never written (8.4) |
 
-Nothing runs in the background (S23). No money is spent; Help says how much a catalog update downloads (about 1 MB)
+Nothing runs in the background (S23). No money is spent; Help says how much a catalog update downloads (about 1.5 MB)
 and each file's size.
+
+The User-Agent names meshflash and its version, as S3 wants, inside the browser form that MeshCore's FAQ (5.13) says
+the flasher site needs before it serves a whole file: a departure from S3's exact form, agreed with the owner.
 
 ## 3. The flow
 
@@ -53,7 +61,7 @@ and each file's size.
 Board ─enter→ Choose board ─enter→ Role ─enter→ Version ─enter→ Confirm ─y→ Download? → Flash → Result
   │                                                (n notes)     (u/w pick update or wipe)      │
   ├─ u  Update catalog (Wi-Fi)                                                                  └─ s → Setup
-  ├─ s  Set up a board already running repeater or room-server firmware (no flash) (asked)
+  ├─ s  Set up a board already running repeater or room-server firmware (no flash)
   └─ c  Saved files
 ```
 
@@ -61,12 +69,13 @@ Board ─enter→ Choose board ─enter→ Role ─enter→ Version ─enter→ 
 
 Designed at 45×10 (the CLI app); the same screens at 53×14 on the LCD get more rows of list and text, and still work
 at 40×10 (S10). The top line is the status line (S13): the screen's subject on the left; on the right the battery
-(LCD only) and the board's mark: `●` a board is plugged in and identified, `○` none, `…` busy talking to it
-**(asked)**. The bottom line is the key hints (S12). Text wraps (S11). The mock-ups are close to, not exactly, what
+(LCD only) and the board's mark: `●` a board is plugged in and identified, `○` none, `…` busy talking to it. The
+bottom line is the key hints (S12). Text wraps (S11). The mock-ups are close to, not exactly, what
 the goldens will hold.
 
 **Board** (start screen). Every plugged-in serial port, what its USB identity suggests, and what it's running when that
-is known; the catalog's age.
+is known; the catalog's age. When a port appears and isn't a bootloader, meshflash asks it `ver`, `get role` and
+`board` (read-only; repeater and room-server firmware answer, others stay silent within 2 s) and shows the answer.
 
 ```
 meshflash                              87% ●
@@ -100,9 +109,11 @@ j/k move  enter pick  f find  ? help
 
 `f` opens a one-line text box that filters the list as you type (Enter keeps it, Esc clears it).
 
-**Role.** The roles this board has in the catalog with at least one version: Repeater, Room server, Companion
-(Bluetooth), Companion (USB) (and KISS modem **(asked)**). The catalog's notice for the board is shown here as plain
-text (the T1000-E LoRaWAN warning, which the web flasher never shows, also asks `y` before going on (asked)).
+**Role.** The roles this board has with at least one version, in three groups: MeshCore (Repeater, Room server,
+Companion · Bluetooth, Companion · USB, KISS modem); ZephCore, marked "third-party port" (from its own catalog, matched
+to the board by name; ZephCore-only boards appear in Choose board with only these); Ripple, marked "closed source,
+third-party" (GUI, GUI with data on SD). The catalog's notice for the board is shown as plain text, links dropped,
+including the T1000-E LoRaWAN warning that the web flasher never shows.
 
 **Version.** Newest first, with "saved" and its size when the file is on the SD card. `n` (or Enter on a version)
 shows its release notes, wrapped and paged with `j`/`k`/Space/`b`.
@@ -176,11 +187,13 @@ r retry  esc back  ? help
 | Field | Default | Checks before sending |
 | --- | --- | --- |
 | Name | the node's current name, or empty | 1–23 bytes; none of `[ ] / \ : , ? *`; no leading or trailing space |
-| Radio | your messenger's settings when `~/.config/mesh/config.json` has them (8.4); otherwise the last radio meshflash sent; otherwise a MeshCore preset; or Manual | only the bandwidths the radio accepts (7.8, 7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500 kHz); frequency within the firmware's range; SF 5–12; CR 5–8 |
-| TX power | the node's current value | at most the board's limit (asked) |
+| Radio | your messenger's settings when `~/.config/mesh/config.json` has them (8.4); otherwise the last radio meshflash sent; otherwise the node's current values. `p` lists MeshCore's presets (a copy built into meshflash, 7) and Manual | only the bandwidths the radio accepts (7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500 kHz); frequency within the firmware's range; SF 5–12; CR 5–8 |
+| TX power | the node's current value | refused above the board's limit: MeshCore FAQ 7.7's values for amplified boards (Station G2, Ikoka E22-30S/33S, Heltec V4), 22 dBm for the rest |
 | Path hash mode | from the preset (size − 1), else the node's current value; 1, 2 or 3 bytes | firmware v1.14.0 or newer; the row says "needs v1.14+" otherwise |
+| Latitude, longitude | the node's current values; blank sends nothing | −90…90, −180…180 |
+| Local advert | the node's current value: off, or every 60–240 minutes (the first setting saved turns off a new node's 2-minute local advert) | 0 or 60–240 |
 | Admin password | empty: you must type one | 1–15 bytes, no leading or trailing space. Shown as `•`, never saved, never logged, cleared when the screen closes |
-| Guest password (room server) (asked) | the node's current value | 1–15 bytes |
+| Guest password (room server only) | the node's current value | 1–15 bytes, always sent: a build's default is `hello` or blank, and a blank one lets anyone in |
 
 `y` sends it: one command at a time, each line ending in CR, waiting for its `  -> ` reply; then reads every value
 back and compares (numbers numerically); then `reboot`, waits for the board to come back, and checks `ver` and
@@ -193,8 +206,8 @@ saved catalog stays and the screen says why (no Wi-Fi, HTTP status).
 
 **Saved files** (`c`): each saved file with its board, role, version, size and date; `x` deletes one after `y` (S20).
 
-**Help** (`?`): every key of the screen it was opened from, meshflash's version, the server
-(`flasher.meshcore.io`), the folders it uses, and the `dialout` command.
+**Help** (`?`): every key of the screen it was opened from, meshflash's version, the servers (`flasher.meshcore.io`,
+`zephcore.meshcore.dev`, GitHub as the fallback), the folders it uses, and the `dialout` command.
 
 ## 5. Keys
 
@@ -232,8 +245,8 @@ goes back (on Board, it quits); `?` is Help; Ctrl+C quits from anywhere (asking 
 ### 6.2 ESP32
 
 As the web flasher does (esptool-js 0.5.4 in `flasher.meshcore.io`): reset into the ROM bootloader, SYNC, read the
-chip, upload the flasher stub **(asked: the legacy stub is GPL-2.0)**, compressed write at 115200 baud, then a hard
-reset. Departures, each changing only failures, not the bytes of a successful run, except the added MD5 check:
+chip, upload the same flasher stub (Espressif's legacy stub v1.3.0, GPL-2.0-or-later: sent to the chip as data, its
+licence and source shipped in `third_party/`), compressed write at 115200 baud, then a hard reset. Departures, each changing only failures, not the bytes of a successful run, except the added MD5 check:
 
 - **Verify:** SPI_FLASH_MD5 over what was written, compared with the file's MD5, before the reset (the reference never
   verifies).
@@ -267,7 +280,11 @@ From `docs/meshcore-flashing.md` §7: 115200 8N1 raw, DTR asserted, each command
 reply, at most 128 bytes a command. The firmware's version (`ver`) picks the commands (`set path.hash.mode` only from
 v1.14.0; frequency floor 300 MHz before v1.15.0). `set radio` takes effect after `reboot`; everything else at once.
 The admin password is sent once, compared with the node's `password now: …` reply, and dropped. The clock is set with
-`time <unix>` only when the Zero's clock is synchronised **(asked)**.
+`time <unix>` only when the Zero's clock is NTP-synchronised; otherwise setup says it skipped it.
+
+The presets are a copy of MeshCore's 27 regional presets as served by `api.meshcore.nz` on 19 Nov 2026
+(`docs/meshcore-flashing.md` §7.8), built in so setup works with no network. The list isn't in MeshCore's repository
+and has no stated licence; the owner chose the built-in copy knowing that.
 
 ## 8. What it saves
 
@@ -277,7 +294,7 @@ All files are the owner's (0600 in 0700 folders), under its own name (S2).
 | --- | --- |
 | `~/.config/meshflash/config.json` | the last radio settings sent (frequency, bandwidth, SF, CR, TX power, path hash mode; never a password) |
 | `~/.config/meshflash/drafts.json` | an unsent setup form per board serial number, without passwords (S7) |
-| `~/.cache/meshflash/catalog/` | `config.json`, `releases-github.json` (and the presets), as fetched, with the time |
+| `~/.cache/meshflash/catalog/` | `config.json`, `config-zephcore.json` and each `releases-<key>.json`, as fetched, with the time |
 | `~/.cache/meshflash/files/` | each downloaded file under its catalog name, and `index.json`: name, URL, size, SHA-256, when |
 | `~/.cache/meshflash/screen.log` | what went wrong, started afresh each run (S5). Never a password |
 
@@ -339,6 +356,13 @@ sudo reboot
 (A reboot, because the launcher's user manager keeps the groups it started with.) Until then meshflash shows this
 command when it can't open a port.
 
+### 9.4 Licence
+
+meshflash's own code is MIT. `THIRD_PARTY_NOTICES` lists what it ports or carries: the web flasher's logic (MIT,
+Rastislav Vysoky), the DFU code (BSD-3-Clause, Nordic Semiconductor, through `lib/dfu.js`), any esptool-js code
+(Apache-2.0, Espressif), the legacy ESP32 flasher stub (GPL-2.0-or-later, with its source), and MeshCore's tables
+(MIT).
+
 ## 10. Testing
 
 - Unit tests use fakes only: a fake serial port with a fake ESP32 ROM and stub, a fake nRF52 bootloader, a fake
@@ -355,42 +379,55 @@ command when it can't open a port.
 - S29 ("every route against the real server") becomes: every route against `httptest` serving the saved live copies,
   since tests never touch the network. The real site is first used on the device, with the owner.
 
-## 11. Open choices (asked)
+## 11. The owner's choices
 
-The owner answers these as multiple choice; the recommendation is first. Answers go in here with the date.
+Asked as multiple choice with a recommendation first; answered 24 Nov 2026.
 
-Answered 24 Nov 2026:
+| Choice | Answer |
+| --- | --- |
+| Name | **meshflash** (home screen "MeshFlash") |
+| Test boards | Heltec v4 (ESP32-S3, native USB); RAK WisBlock 4631, several Seeed Xiao nRF52, Seeed Wio Tracker L1 Pro (nRF52840) |
+| Update or full wipe | **no preselection**: the owner picks every time |
+| Radio settings | read `~/.config/mesh/config.json` in the format of 8.4 (no messenger writes it yet) |
+| Ripple's closed-source builds | **listed, marked closed source** |
+| Roles | companion, repeater, room server, **KISS modem and ZephCore** |
+| ESP32 stub | **the same legacy stub as the web flasher** (GPL text and source shipped) |
+| ESP32 full wipe | **offered as firmware**: chip erase plus the merged image |
+| Downloads | the flasher sites, **GitHub as a fallback** for MeshCore community files |
+| Radio presets | **a built-in copy** |
+| Setup fields | the brief's five, the room-server guest password, **latitude/longitude and the local advert interval** |
+| Node clock | set **only when the Zero's clock is synchronised** |
+| Setup without flashing | **yes**, `s` on the Board screen |
+| Probing a running board | **automatically** |
+| TX power | **refused above the board's limit** |
+| Status mark | **the board** |
+| T1000-E warning | **shown only** |
+| Licence | **MIT** |
+| User-Agent | **`Mozilla/5.0 (compatible; meshflash/<version>)`** (departs from S3's exact form) |
+| Device phase | **the owner runs the commands** and pastes back what they print |
 
-- Name: **meshflash**.
-- Test boards: Heltec v4 (ESP32-S3, native USB), RAK WisBlock 4631, several Seeed Xiao nRF52, Seeed Wio Tracker L1
-  Pro (all nRF52840).
-- Update or wipe: **no preselection**; the owner picks every time.
-- Radio settings: read `~/.config/mesh/config.json` in the format of 8.4 (no messenger writes it yet).
+Decided without asking (technical defaults; the owner can overrule any):
 
-To ask:
+- ESP32 at 115200 baud like the reference (native-USB boards such as the Heltec v4 go at USB speed anyway).
+- ESP32: fix esptool-js 0.5.4's failure bugs (endless connect, unchecked status, dropped bytes); add MD5 verify; send
+  the same informational reads as the reference.
+- nRF52: resend an unacknowledged frame up to twice; after flashing, wait for the board to come back and check `ver`.
+- The setup console sends CR line endings and clean values (as MeshCore's config tool does), not the reference
+  console's CR LF.
 
-1. Ripple's closed-source GUI builds (28 entries on 14 boards; 10 of the boards have nothing else): hide; or list
-   them marked "closed source".
-2. Roles beyond companion, repeater and room server: none; KISS modem; KISS modem and ZephCore.
-3. ESP32 flasher stub: the legacy stub the web flasher sends (GPL-2.0, its text and source shipped in the repo);
-   ROM only (no stub, no full-chip erase, more untested parts); Espressif's newer MIT/Apache stub (bytes differ from
-   the reference).
-4. Full wipe on ESP32 (merged image with the second-stage bootloader, after a chip erase): offer it; offer it without
-   the chip erase; never.
-5. Downloads: the flasher site only; or GitHub as a fallback when the site fails.
-6. Radio presets: fetch MeshCore's list from `api.meshcore.nz` with the catalog; a built-in copy; none.
-7. Setup fields: the five in the brief plus the room-server guest password; also latitude/longitude and the local
-   advert interval; only the five.
-8. The node's clock: set it when the Zero's clock is synchronised; never.
-9. Set up a board already running repeater or room-server firmware, without flashing: yes; no.
-10. Asking a running board `ver`, `get role` and `board` to sharpen the suggestion: automatically when it's plugged
-    in; only on a key; never.
-11. TX power: refuse above the board's known limit (22 dBm for most, lower for amplified boards); warn only; no limit.
-12. The status line's mark: the board's connection; the Wi-Fi.
-13. The T1000-E LoRaWAN warning: show it and ask `y`; show it only.
-14. The app's licence (the repository is public): MIT; Apache-2.0; GPL-3.0.
-15. The device phase: attach your PC through Remote Control so I can run `make deploy` and the drive scripts with you
-    watching; or you run the commands I give you.
+## 12. Phases
+
+Each phase ends with a report and a stop.
+
+1. **Protocols, against fakes.** Catalog resolution (golden from `js/catalog.js` in Node), the serial port layer, USB
+   identification, ESP32 (golden recordings from `lib/esp32.js` in Node), nRF52 DFU (golden recordings from
+   `lib/dfu.js`), the setup CLI against a fake node. No screens yet.
+2. **Screens, against fakes.** Every screen with goldens at the three sizes; the whole flow end to end against a fake
+   board and `httptest`; the icon (shown to the owner first) and the home-screen entry; a run with the screen drawn
+   into a file on the PC.
+3. **The device, with the owner.** The owner runs the commands: `dialout`, `make deploy`, a run on the device drawing
+   into a file with keys from a FIFO (S30), memory (S9); then, with the owner watching, flashing and setting up a real
+   board; the hand-over checklist (`docs/standards.md` in the kit).
 
 ## Changes to this spec
 
