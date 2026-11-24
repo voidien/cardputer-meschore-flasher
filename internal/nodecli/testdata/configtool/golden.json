@@ -1,0 +1,620 @@
+[
+ {
+  "name": "repeater v1.18.0: ver",
+  "cmd": "ver",
+  "rx": "7665720d0a20202d3e2076312e31382e302d3831646261653520284275696c643a2031352d4f63742d32303236290d0a",
+  "whole": "v1.18.0-81dbae5 (Build: 15-Oct-2026)",
+  "bytewise": "v1.18.0-81dbae5 (Build: 15-Oct-2026)",
+  "tx": "7665720d"
+ },
+ {
+  "name": "repeater v1.18.0: get role",
+  "cmd": "get role",
+  "rx": "67657420726f6c650d0a20202d3e203e2072657065617465720d0a",
+  "whole": "> repeater",
+  "bytewise": "> repeater",
+  "tx": "67657420726f6c650d"
+ },
+ {
+  "name": "repeater v1.18.0: board",
+  "cmd": "board",
+  "rx": "626f6172640d0a20202d3e2048656c7465632056330d0a",
+  "whole": "Heltec V3",
+  "bytewise": "Heltec V3",
+  "tx": "626f6172640d"
+ },
+ {
+  "name": "repeater v1.18.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d0a20202d3e203e2048656c7465632052657065617465720d0a",
+  "whole": "> Heltec Repeater",
+  "bytewise": "> Heltec Repeater",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "repeater v1.18.0: set name Hilltop 2",
+  "cmd": "set name Hilltop 2",
+  "rx": "736574206e616d652048696c6c746f7020320d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206e616d652048696c6c746f7020320d"
+ },
+ {
+  "name": "repeater v1.18.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d0a20202d3e203e2048696c6c746f7020320d0a",
+  "whole": "> Hilltop 2",
+  "bytewise": "> Hilltop 2",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "repeater v1.18.0: set radio 869.618,62.5,8,8",
+  "cmd": "set radio 869.618,62.5,8,8",
+  "rx": "73657420726164696f203836392e3631382c36322e352c382c380d0a20202d3e204f4b202d207265626f6f7420746f206170706c790d0a",
+  "whole": "OK - reboot to apply",
+  "bytewise": "OK - reboot to apply",
+  "tx": "73657420726164696f203836392e3631382c36322e352c382c380d"
+ },
+ {
+  "name": "repeater v1.18.0: get radio",
+  "cmd": "get radio",
+  "rx": "67657420726164696f0d0a20202d3e203e203836392e363137393830392c36322e352c382c380d0a",
+  "whole": "> 869.6179809,62.5,8,8",
+  "bytewise": "> 869.6179809,62.5,8,8",
+  "tx": "67657420726164696f0d"
+ },
+ {
+  "name": "repeater v1.18.0: set tx -5",
+  "cmd": "set tx -5",
+  "rx": "736574207478202d350d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574207478202d350d"
+ },
+ {
+  "name": "repeater v1.18.0: get tx",
+  "cmd": "get tx",
+  "rx": "6765742074780d0a20202d3e203e203235310d0a",
+  "whole": "> 251",
+  "bytewise": "> 251",
+  "tx": "6765742074780d"
+ },
+ {
+  "name": "repeater v1.18.0: get path.hash.mode",
+  "cmd": "get path.hash.mode",
+  "rx": "67657420706174682e686173682e6d6f64650d0a20202d3e203e20300d0a",
+  "whole": "> 0",
+  "bytewise": "> 0",
+  "tx": "67657420706174682e686173682e6d6f64650d"
+ },
+ {
+  "name": "repeater v1.18.0: set path.hash.mode 1",
+  "cmd": "set path.hash.mode 1",
+  "rx": "73657420706174682e686173682e6d6f646520310d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "73657420706174682e686173682e6d6f646520310d"
+ },
+ {
+  "name": "repeater v1.18.0: get guest.password",
+  "cmd": "get guest.password",
+  "rx": "6765742067756573742e70617373776f72640d0a20202d3e203e200d0a",
+  "whole": ">",
+  "bytewise": ">",
+  "tx": "6765742067756573742e70617373776f72640d"
+ },
+ {
+  "name": "repeater v1.18.0: set lat 51.5074",
+  "cmd": "set lat 51.5074",
+  "rx": "736574206c61742035312e353037340d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206c61742035312e353037340d"
+ },
+ {
+  "name": "repeater v1.18.0: get lat",
+  "cmd": "get lat",
+  "rx": "676574206c61740d0a20202d3e203e2035312e353037343030350d0a",
+  "whole": "> 51.5074005",
+  "bytewise": "> 51.5074005",
+  "tx": "676574206c61740d"
+ },
+ {
+  "name": "repeater v1.18.0: set advert.interval 120",
+  "cmd": "set advert.interval 120",
+  "rx": "736574206164766572742e696e74657276616c203132300d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206164766572742e696e74657276616c203132300d"
+ },
+ {
+  "name": "repeater v1.18.0: get advert.interval",
+  "cmd": "get advert.interval",
+  "rx": "676574206164766572742e696e74657276616c0d0a20202d3e203e203132300d0a",
+  "whole": "> 120",
+  "bytewise": "> 120",
+  "tx": "676574206164766572742e696e74657276616c0d"
+ },
+ {
+  "name": "repeater v1.18.0: time 1795953600",
+  "cmd": "time 1795953600",
+  "rx": "74696d6520313739353935333630300d0a20202d3e204f4b202d20636c6f636b207365743a2031323a3030202d2032392f31312f32303236205554430d0a",
+  "whole": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "bytewise": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "tx": "74696d6520313739353935333630300d"
+ },
+ {
+  "name": "room_server v1.18.0: ver",
+  "cmd": "ver",
+  "rx": "7665720d20202d3e2076312e31382e302d3831646261653520284275696c643a2031352d4f63742d32303236290d0a",
+  "whole": "v1.18.0-81dbae5 (Build: 15-Oct-2026)",
+  "bytewise": "v1.18.0-81dbae5 (Build: 15-Oct-2026)",
+  "tx": "7665720d"
+ },
+ {
+  "name": "room_server v1.18.0: get role",
+  "cmd": "get role",
+  "rx": "67657420726f6c650d20202d3e203e20726f6f6d5f7365727665720d0a",
+  "whole": "> room_server",
+  "bytewise": "> room_server",
+  "tx": "67657420726f6c650d"
+ },
+ {
+  "name": "room_server v1.18.0: board",
+  "cmd": "board",
+  "rx": "626f6172640d20202d3e2048656c7465632056330d0a",
+  "whole": "Heltec V3",
+  "bytewise": "Heltec V3",
+  "tx": "626f6172640d"
+ },
+ {
+  "name": "room_server v1.18.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d20202d3e203e2048656c74656320526f6f6d0d0a",
+  "whole": "> Heltec Room",
+  "bytewise": "> Heltec Room",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "room_server v1.18.0: set name Hilltop 2",
+  "cmd": "set name Hilltop 2",
+  "rx": "736574206e616d652048696c6c746f7020320d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206e616d652048696c6c746f7020320d"
+ },
+ {
+  "name": "room_server v1.18.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d20202d3e203e2048696c6c746f7020320d0a",
+  "whole": "> Hilltop 2",
+  "bytewise": "> Hilltop 2",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "room_server v1.18.0: set radio 869.618,62.5,8,8",
+  "cmd": "set radio 869.618,62.5,8,8",
+  "rx": "73657420726164696f203836392e3631382c36322e352c382c380d20202d3e204f4b202d207265626f6f7420746f206170706c790d0a",
+  "whole": "OK - reboot to apply",
+  "bytewise": "OK - reboot to apply",
+  "tx": "73657420726164696f203836392e3631382c36322e352c382c380d"
+ },
+ {
+  "name": "room_server v1.18.0: get radio",
+  "cmd": "get radio",
+  "rx": "67657420726164696f0d20202d3e203e203836392e363137393830392c36322e352c382c380d0a",
+  "whole": "> 869.6179809,62.5,8,8",
+  "bytewise": "> 869.6179809,62.5,8,8",
+  "tx": "67657420726164696f0d"
+ },
+ {
+  "name": "room_server v1.18.0: set tx -5",
+  "cmd": "set tx -5",
+  "rx": "736574207478202d350d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574207478202d350d"
+ },
+ {
+  "name": "room_server v1.18.0: get tx",
+  "cmd": "get tx",
+  "rx": "6765742074780d20202d3e203e203235310d0a",
+  "whole": "> 251",
+  "bytewise": "> 251",
+  "tx": "6765742074780d"
+ },
+ {
+  "name": "room_server v1.18.0: get path.hash.mode",
+  "cmd": "get path.hash.mode",
+  "rx": "67657420706174682e686173682e6d6f64650d20202d3e203e20300d0a",
+  "whole": "> 0",
+  "bytewise": "> 0",
+  "tx": "67657420706174682e686173682e6d6f64650d"
+ },
+ {
+  "name": "room_server v1.18.0: set path.hash.mode 1",
+  "cmd": "set path.hash.mode 1",
+  "rx": "73657420706174682e686173682e6d6f646520310d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "73657420706174682e686173682e6d6f646520310d"
+ },
+ {
+  "name": "room_server v1.18.0: get guest.password",
+  "cmd": "get guest.password",
+  "rx": "6765742067756573742e70617373776f72640d20202d3e203e200d0a",
+  "whole": ">",
+  "bytewise": ">",
+  "tx": "6765742067756573742e70617373776f72640d"
+ },
+ {
+  "name": "room_server v1.18.0: set lat 51.5074",
+  "cmd": "set lat 51.5074",
+  "rx": "736574206c61742035312e353037340d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206c61742035312e353037340d"
+ },
+ {
+  "name": "room_server v1.18.0: get lat",
+  "cmd": "get lat",
+  "rx": "676574206c61740d20202d3e203e2035312e353037343030350d0a",
+  "whole": "> 51.5074005",
+  "bytewise": "> 51.5074005",
+  "tx": "676574206c61740d"
+ },
+ {
+  "name": "room_server v1.18.0: set advert.interval 120",
+  "cmd": "set advert.interval 120",
+  "rx": "736574206164766572742e696e74657276616c203132300d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206164766572742e696e74657276616c203132300d"
+ },
+ {
+  "name": "room_server v1.18.0: get advert.interval",
+  "cmd": "get advert.interval",
+  "rx": "676574206164766572742e696e74657276616c0d20202d3e203e203132300d0a",
+  "whole": "> 120",
+  "bytewise": "> 120",
+  "tx": "676574206164766572742e696e74657276616c0d"
+ },
+ {
+  "name": "room_server v1.18.0: time 1795953600",
+  "cmd": "time 1795953600",
+  "rx": "74696d6520313739353935333630300d20202d3e204f4b202d20636c6f636b207365743a2031323a3030202d2032392f31312f32303236205554430d0a",
+  "whole": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "bytewise": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "tx": "74696d6520313739353935333630300d"
+ },
+ {
+  "name": "repeater v1.11.0: ver",
+  "cmd": "ver",
+  "rx": "7665720d0a20202d3e2076312e31312e302d3664333231393320284275696c643a2033302d4e6f762d32303235290d0a",
+  "whole": "v1.11.0-6d32193 (Build: 30-Nov-2025)",
+  "bytewise": "v1.11.0-6d32193 (Build: 30-Nov-2025)",
+  "tx": "7665720d"
+ },
+ {
+  "name": "repeater v1.11.0: get role",
+  "cmd": "get role",
+  "rx": "67657420726f6c650d0a20202d3e203e2072657065617465720d0a",
+  "whole": "> repeater",
+  "bytewise": "> repeater",
+  "tx": "67657420726f6c650d"
+ },
+ {
+  "name": "repeater v1.11.0: board",
+  "cmd": "board",
+  "rx": "626f6172640d0a20202d3e2048656c7465632056330d0a",
+  "whole": "Heltec V3",
+  "bytewise": "Heltec V3",
+  "tx": "626f6172640d"
+ },
+ {
+  "name": "repeater v1.11.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d0a20202d3e203e2048656c7465632052657065617465720d0a",
+  "whole": "> Heltec Repeater",
+  "bytewise": "> Heltec Repeater",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "repeater v1.11.0: set name Hilltop 2",
+  "cmd": "set name Hilltop 2",
+  "rx": "736574206e616d652048696c6c746f7020320d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206e616d652048696c6c746f7020320d"
+ },
+ {
+  "name": "repeater v1.11.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d0a20202d3e203e2048696c6c746f7020320d0a",
+  "whole": "> Hilltop 2",
+  "bytewise": "> Hilltop 2",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "repeater v1.11.0: set radio 869.618,62.5,8,8",
+  "cmd": "set radio 869.618,62.5,8,8",
+  "rx": "73657420726164696f203836392e3631382c36322e352c382c380d0a20202d3e204f4b202d207265626f6f7420746f206170706c790d0a",
+  "whole": "OK - reboot to apply",
+  "bytewise": "OK - reboot to apply",
+  "tx": "73657420726164696f203836392e3631382c36322e352c382c380d"
+ },
+ {
+  "name": "repeater v1.11.0: get radio",
+  "cmd": "get radio",
+  "rx": "67657420726164696f0d0a20202d3e203e203836392e363137393830392c36322e352c382c380d0a",
+  "whole": "> 869.6179809,62.5,8,8",
+  "bytewise": "> 869.6179809,62.5,8,8",
+  "tx": "67657420726164696f0d"
+ },
+ {
+  "name": "repeater v1.11.0: set tx -5",
+  "cmd": "set tx -5",
+  "rx": "736574207478202d350d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574207478202d350d"
+ },
+ {
+  "name": "repeater v1.11.0: get tx",
+  "cmd": "get tx",
+  "rx": "6765742074780d0a20202d3e203e203235310d0a",
+  "whole": "> 251",
+  "bytewise": "> 251",
+  "tx": "6765742074780d"
+ },
+ {
+  "name": "repeater v1.11.0: get path.hash.mode",
+  "cmd": "get path.hash.mode",
+  "rx": "67657420706174682e686173682e6d6f64650d0a20202d3e203f3f3a20706174682e686173682e6d6f64650d0a",
+  "whole": "??: path.hash.mode",
+  "bytewise": "??: path.hash.mode",
+  "tx": "67657420706174682e686173682e6d6f64650d"
+ },
+ {
+  "name": "repeater v1.11.0: set path.hash.mode 1",
+  "cmd": "set path.hash.mode 1",
+  "rx": "73657420706174682e686173682e6d6f646520310d0a20202d3e20756e6b6e6f776e20636f6e6669673a20706174682e686173682e6d6f646520310d0a",
+  "whole": "unknown config: path.hash.mode 1",
+  "bytewise": "unknown config: path.hash.mode 1",
+  "tx": "73657420706174682e686173682e6d6f646520310d"
+ },
+ {
+  "name": "repeater v1.11.0: get guest.password",
+  "cmd": "get guest.password",
+  "rx": "6765742067756573742e70617373776f72640d0a20202d3e203e200d0a",
+  "whole": ">",
+  "bytewise": ">",
+  "tx": "6765742067756573742e70617373776f72640d"
+ },
+ {
+  "name": "repeater v1.11.0: set lat 51.5074",
+  "cmd": "set lat 51.5074",
+  "rx": "736574206c61742035312e353037340d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206c61742035312e353037340d"
+ },
+ {
+  "name": "repeater v1.11.0: get lat",
+  "cmd": "get lat",
+  "rx": "676574206c61740d0a20202d3e203e2035312e353037343030350d0a",
+  "whole": "> 51.5074005",
+  "bytewise": "> 51.5074005",
+  "tx": "676574206c61740d"
+ },
+ {
+  "name": "repeater v1.11.0: set advert.interval 120",
+  "cmd": "set advert.interval 120",
+  "rx": "736574206164766572742e696e74657276616c203132300d0a20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206164766572742e696e74657276616c203132300d"
+ },
+ {
+  "name": "repeater v1.11.0: get advert.interval",
+  "cmd": "get advert.interval",
+  "rx": "676574206164766572742e696e74657276616c0d0a20202d3e203e203132300d0a",
+  "whole": "> 120",
+  "bytewise": "> 120",
+  "tx": "676574206164766572742e696e74657276616c0d"
+ },
+ {
+  "name": "repeater v1.11.0: time 1795953600",
+  "cmd": "time 1795953600",
+  "rx": "74696d6520313739353935333630300d0a20202d3e204f4b202d20636c6f636b207365743a2031323a3030202d2032392f31312f32303236205554430d0a",
+  "whole": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "bytewise": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "tx": "74696d6520313739353935333630300d"
+ },
+ {
+  "name": "room_server v1.13.0: ver",
+  "cmd": "ver",
+  "rx": "7665720d20202d3e2076312e31332e302d3239356636376420284275696c643a2031352d4665622d32303236290d0a",
+  "whole": "v1.13.0-295f67d (Build: 15-Feb-2026)",
+  "bytewise": "v1.13.0-295f67d (Build: 15-Feb-2026)",
+  "tx": "7665720d"
+ },
+ {
+  "name": "room_server v1.13.0: get role",
+  "cmd": "get role",
+  "rx": "67657420726f6c650d20202d3e203e20726f6f6d5f7365727665720d0a",
+  "whole": "> room_server",
+  "bytewise": "> room_server",
+  "tx": "67657420726f6c650d"
+ },
+ {
+  "name": "room_server v1.13.0: board",
+  "cmd": "board",
+  "rx": "626f6172640d20202d3e2048656c7465632056330d0a",
+  "whole": "Heltec V3",
+  "bytewise": "Heltec V3",
+  "tx": "626f6172640d"
+ },
+ {
+  "name": "room_server v1.13.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d20202d3e203e2048656c74656320526f6f6d0d0a",
+  "whole": "> Heltec Room",
+  "bytewise": "> Heltec Room",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "room_server v1.13.0: set name Hilltop 2",
+  "cmd": "set name Hilltop 2",
+  "rx": "736574206e616d652048696c6c746f7020320d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206e616d652048696c6c746f7020320d"
+ },
+ {
+  "name": "room_server v1.13.0: get name",
+  "cmd": "get name",
+  "rx": "676574206e616d650d20202d3e203e2048696c6c746f7020320d0a",
+  "whole": "> Hilltop 2",
+  "bytewise": "> Hilltop 2",
+  "tx": "676574206e616d650d"
+ },
+ {
+  "name": "room_server v1.13.0: set radio 869.618,62.5,8,8",
+  "cmd": "set radio 869.618,62.5,8,8",
+  "rx": "73657420726164696f203836392e3631382c36322e352c382c380d20202d3e204f4b202d207265626f6f7420746f206170706c790d0a",
+  "whole": "OK - reboot to apply",
+  "bytewise": "OK - reboot to apply",
+  "tx": "73657420726164696f203836392e3631382c36322e352c382c380d"
+ },
+ {
+  "name": "room_server v1.13.0: get radio",
+  "cmd": "get radio",
+  "rx": "67657420726164696f0d20202d3e203e203836392e363137393830392c36322e352c382c380d0a",
+  "whole": "> 869.6179809,62.5,8,8",
+  "bytewise": "> 869.6179809,62.5,8,8",
+  "tx": "67657420726164696f0d"
+ },
+ {
+  "name": "room_server v1.13.0: set tx -5",
+  "cmd": "set tx -5",
+  "rx": "736574207478202d350d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574207478202d350d"
+ },
+ {
+  "name": "room_server v1.13.0: get tx",
+  "cmd": "get tx",
+  "rx": "6765742074780d20202d3e203e202d350d0a",
+  "whole": "> -5",
+  "bytewise": "> -5",
+  "tx": "6765742074780d"
+ },
+ {
+  "name": "room_server v1.13.0: get path.hash.mode",
+  "cmd": "get path.hash.mode",
+  "rx": "67657420706174682e686173682e6d6f64650d20202d3e203f3f3a20706174682e686173682e6d6f64650d0a",
+  "whole": "??: path.hash.mode",
+  "bytewise": "??: path.hash.mode",
+  "tx": "67657420706174682e686173682e6d6f64650d"
+ },
+ {
+  "name": "room_server v1.13.0: set path.hash.mode 1",
+  "cmd": "set path.hash.mode 1",
+  "rx": "73657420706174682e686173682e6d6f646520310d20202d3e20756e6b6e6f776e20636f6e6669673a20706174682e686173682e6d6f646520310d0a",
+  "whole": "unknown config: path.hash.mode 1",
+  "bytewise": "unknown config: path.hash.mode 1",
+  "tx": "73657420706174682e686173682e6d6f646520310d"
+ },
+ {
+  "name": "room_server v1.13.0: get guest.password",
+  "cmd": "get guest.password",
+  "rx": "6765742067756573742e70617373776f72640d20202d3e203e200d0a",
+  "whole": ">",
+  "bytewise": ">",
+  "tx": "6765742067756573742e70617373776f72640d"
+ },
+ {
+  "name": "room_server v1.13.0: set lat 51.5074",
+  "cmd": "set lat 51.5074",
+  "rx": "736574206c61742035312e353037340d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206c61742035312e353037340d"
+ },
+ {
+  "name": "room_server v1.13.0: get lat",
+  "cmd": "get lat",
+  "rx": "676574206c61740d20202d3e203e2035312e353037343030350d0a",
+  "whole": "> 51.5074005",
+  "bytewise": "> 51.5074005",
+  "tx": "676574206c61740d"
+ },
+ {
+  "name": "room_server v1.13.0: set advert.interval 120",
+  "cmd": "set advert.interval 120",
+  "rx": "736574206164766572742e696e74657276616c203132300d20202d3e204f4b0d0a",
+  "whole": "OK",
+  "bytewise": "OK",
+  "tx": "736574206164766572742e696e74657276616c203132300d"
+ },
+ {
+  "name": "room_server v1.13.0: get advert.interval",
+  "cmd": "get advert.interval",
+  "rx": "676574206164766572742e696e74657276616c0d20202d3e203e203132300d0a",
+  "whole": "> 120",
+  "bytewise": "> 120",
+  "tx": "676574206164766572742e696e74657276616c0d"
+ },
+ {
+  "name": "room_server v1.13.0: time 1795953600",
+  "cmd": "time 1795953600",
+  "rx": "74696d6520313739353935333630300d20202d3e204f4b202d20636c6f636b207365743a2031323a3030202d2032392f31312f32303236205554430d0a",
+  "whole": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "bytewise": "OK - clock set: 12:00 - 29/11/2026 UTC",
+  "tx": "74696d6520313739353935333630300d"
+ },
+ {
+  "name": "repeater: banner and a log line",
+  "cmd": "ver",
+  "rx": "52657065617465722049443a20413142324333443441314232433344344131423243334434413142324333443441314232433344344131423243334434413142324333443441314232433344340d0a44454255473a20726164696f20737461727465640d0a7665720d0a20202d3e2076312e31372e312d6439323936343320284275696c643a2031342d4175672d32303236290d0a",
+  "whole": "v1.17.1-d929643 (Build: 14-Aug-2026)",
+  "bytewise": "v1.17.1-d929643 (Build: 14-Aug-2026)",
+  "tx": "7665720d"
+ },
+ {
+  "name": "repeater: region-load escape",
+  "cmd": "",
+  "rx": "0d0a20202d3e204f4b202d206c6f61646564203020726567696f6e730d0a",
+  "whole": "OK - loaded 0 regions",
+  "bytewise": "OK - loaded 0 regions",
+  "tx": "0d"
+ },
+ {
+  "name": "room_server: banner and a log line",
+  "cmd": "ver",
+  "rx": "526f6f6d2049443a20413142324333443441314232433344344131423243334434413142324333443441314232433344344131423243334434413142324333443441314232433344340d0a44454255473a20726164696f20737461727465640d0a7665720d20202d3e2076312e31372e312d6439323936343320284275696c643a2031342d4175672d32303236290d0a",
+  "whole": "v1.17.1-d929643 (Build: 14-Aug-2026)",
+  "bytewise": "v1.17.1-d929643 (Build: 14-Aug-2026)",
+  "tx": "7665720d"
+ },
+ {
+  "name": "room_server: region-load escape",
+  "cmd": "",
+  "rx": "0d20202d3e204f4b202d206c6f61646564203020726567696f6e730d0a",
+  "departure": "the room server echoes a bare CR without LF, so the config tool's search for CR LF first finds the reply's own line end and it never resolves; findReply looks for the command and its CR (the config tool never sends a bare CR)",
+  "whole": null,
+  "bytewise": null,
+  "tx": "0d"
+ },
+ {
+  "name": "a stale reply ahead of the echo",
+  "cmd": "get tx",
+  "rx": "20202d3e204f4b0d0a6765742074780d0a20202d3e203e2032320d0a",
+  "departure": "fed a byte at a time, the config tool takes the first reply it sees when no echo has come yet; findReply requires the echo, so it never takes an earlier command's reply",
+  "whole": "> 22",
+  "bytewise": "OK",
+  "tx": "6765742074780d"
+ }
+]
