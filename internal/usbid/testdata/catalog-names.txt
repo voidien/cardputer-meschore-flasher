@@ -1,0 +1,70 @@
+Heltec v4 + Expansion Kit (Touch)
+Heltec v4 R8 + Expansion Kit (Touch)
+LilyGo T-Deck
+LilyGo T-Deck Max
+LilyGo T-Deck Pro
+LilyGo T-Deck Pro v1.1
+LilyGo T5 E-Paper S3 Pro (H752-XX)
+LilyGo T-Lora Pager
+LilyGo T-Display Pro
+LilyGo T-Watch S3 Plus
+LilyGo T-Watch Ultra
+Seeed Studio Wio Tracker L1 Pro
+Seeed Studio Wio Tracker L2 Pro
+LilyGo T3 S3 (SX126x)
+LilyGo T3 S3 (SX127x)
+LilyGo T-Beam (SX1262)
+LilyGo T-Beam 1.2 (SX1276)
+LilyGo T-Beam 1W
+LilyGo T-Beam Supreme (SX1262)
+LilyGo T-Echo
+LilyGo T-Echo Lite
+LilyGo T-Echo Card
+LilyGo LoRa32 V2.1_1.6
+GAT-IoT GAT562 Tracker
+GAT-IoT GAT562 30s
+Heltec Vision Master E213
+Heltec Vision Master E290
+Heltec v2
+Heltec v3
+Heltec v4
+Heltec v4 R8
+Heltec Mesh Node T096
+Heltec Mesh Node T1
+Heltec T114
+Heltec Wireless Tracker v2
+Heltec MeshPocket
+Heltec MeshSolar / MeshTower
+Heltec MeshTower V2
+Heltec Wireless Tracker
+Heltec Heltec Wireless Paper
+Heltec WSL3
+Ikoka Stick
+Ikoka Nano
+Keepteen LT1
+RAK WisBlock 3112
+RAK WisBlock / WisMesh (RAK 4631)
+RAK WisMesh 1W Booster (3401 + 13302)
+RAK WisMesh Tag
+Seeed Studio SenseCAP Solar Node P1
+Seeed Studio SenseCAP T1000-E
+Seeed Studio SenseCAP MeshTracker X1
+Seeed Studio Wio Tracker L1 EINK
+Seeed Studio Xiao C3
+Seeed Studio Xiao S3 WIO
+Seeed Studio Xiao nRF52 WIO
+Elecrow ThinkNode M1
+Elecrow ThinkNode M2
+Elecrow ThinkNode M3
+Elecrow ThinkNode M4
+Elecrow ThinkNode M5
+Elecrow ThinkNode M6
+Elecrow ThinkNode M7
+Elecrow ThinkNode M9
+UnitEng/BQ Voyage Station G3
+UnitEng Station G2
+UnitEng Nano G2 Ultra
+Muzi Works R1 Neo
+ProMicro nrf52 (faketec)
+RPI Pico W (rp2040) + WaveShare SX1262
+RPI Pico W (rp2350) + WaveShare SX1262

@@ -1,0 +1,370 @@
+# Every lookup the USB ID table answers. Written by TestLookupGolden; rewrite with -update.
+# A port's VID:PID, product and interface string → Classify, then Candidates:
+# board | chip | mode | unverified | note. Product "?" is one the table doesn't name.
+
+10c4:ea60 product="?" interface="" → esp-bridge
+    LilyGo T-Beam (SX1262) | esp32 | either | Older T-Beam revisions have a CP2104 instead of the CH9102.
+    LilyGo T-Beam 1.2 (SX1276) | esp32 | either | Older T-Beam revisions have a CP2104 instead of the CH9102.
+    Heltec v2 | esp32 | either
+    Heltec v3 | esp32s3 | either
+    Heltec Heltec Wireless Paper | esp32s3 | either
+    Heltec WSL3 | esp32s3 | either
+
+10c4:ea60 product="a product the table doesn't name" interface="" → esp-bridge
+    LilyGo T-Beam (SX1262) | esp32 | either | Older T-Beam revisions have a CP2104 instead of the CH9102.
+    LilyGo T-Beam 1.2 (SX1276) | esp32 | either | Older T-Beam revisions have a CP2104 instead of the CH9102.
+    Heltec v2 | esp32 | either
+    Heltec v3 | esp32s3 | either
+    Heltec Heltec Wireless Paper | esp32s3 | either
+    Heltec WSL3 | esp32s3 | either
+
+1a86:55d4 product="?" interface="" → esp-bridge
+    LilyGo T-Beam (SX1262) | esp32 | either
+    LilyGo T-Beam 1.2 (SX1276) | esp32 | either
+    LilyGo LoRa32 V2.1_1.6 | esp32 | either
+
+1a86:55d4 product="a product the table doesn't name" interface="" → esp-bridge
+    LilyGo T-Beam (SX1262) | esp32 | either
+    LilyGo T-Beam 1.2 (SX1276) | esp32 | either
+    LilyGo LoRa32 V2.1_1.6 | esp32 | either
+
+1a86:7522 product="?" interface="" → esp-bridge
+    Elecrow ThinkNode M2 | esp32s3 | either
+    Elecrow ThinkNode M5 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+    Elecrow ThinkNode M7 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+
+1a86:7522 product="a product the table doesn't name" interface="" → esp-bridge
+    Elecrow ThinkNode M2 | esp32s3 | either
+    Elecrow ThinkNode M5 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+    Elecrow ThinkNode M7 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+
+1a86:7523 product="?" interface="" → esp-bridge
+    Elecrow ThinkNode M5 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+    Elecrow ThinkNode M7 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+
+1a86:7523 product="a product the table doesn't name" interface="" → esp-bridge
+    Elecrow ThinkNode M5 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+    Elecrow ThinkNode M7 | esp32s3 | either | unverified | Unverified: which bridge chip this board has isn't known.
+
+239a:0029 product="?" interface="" → nrf-bootloader
+    LilyGo T-Echo | nrf52840 | bootloader
+    LilyGo T-Echo Lite | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the T-Echo's.
+    LilyGo T-Echo Card | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the T-Echo's.
+    GAT-IoT GAT562 Tracker | nrf52840 | bootloader
+    GAT-IoT GAT562 30s | nrf52840 | bootloader
+    Keepteen LT1 | nrf52840 | bootloader | With the catalog's RAK4631 bootloader installed.
+    RAK WisBlock / WisMesh (RAK 4631) | nrf52840 | bootloader
+    RAK WisMesh 1W Booster (3401 + 13302) | nrf52840 | bootloader
+    RAK WisMesh Tag | nrf52840 | bootloader
+    Muzi Works R1 Neo | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the RAK4631's.
+
+239a:0029 product="T-Echo v1.0" interface="nRF Serial" → nrf-bootloader
+    LilyGo T-Echo | nrf52840 | bootloader
+    LilyGo T-Echo Lite | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the T-Echo's.
+    LilyGo T-Echo Card | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the T-Echo's.
+
+239a:0029 product="WisBlock RAK3401" interface="nRF Serial" → nrf-bootloader
+    RAK WisMesh 1W Booster (3401 + 13302) | nrf52840 | bootloader
+
+239a:0029 product="WisBlock RAK4631" interface="nRF Serial" → nrf-bootloader
+    GAT-IoT GAT562 Tracker | nrf52840 | bootloader
+    GAT-IoT GAT562 30s | nrf52840 | bootloader
+    Keepteen LT1 | nrf52840 | bootloader | With the catalog's RAK4631 bootloader installed.
+    RAK WisBlock / WisMesh (RAK 4631) | nrf52840 | bootloader
+    Muzi Works R1 Neo | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the RAK4631's.
+
+239a:0029 product="WisMesh Tag" interface="nRF Serial" → nrf-bootloader
+    RAK WisMesh Tag | nrf52840 | bootloader
+
+239a:002a product="?" interface="" → nrf-bootloader
+    GAT-IoT GAT562 Tracker | nrf52840 | bootloader
+    GAT-IoT GAT562 30s | nrf52840 | bootloader
+    Keepteen LT1 | nrf52840 | bootloader | With the catalog's RAK4631 bootloader installed.
+    RAK WisBlock / WisMesh (RAK 4631) | nrf52840 | bootloader
+    RAK WisMesh 1W Booster (3401 + 13302) | nrf52840 | bootloader
+    RAK WisMesh Tag | nrf52840 | bootloader
+    Muzi Works R1 Neo | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the RAK4631's.
+
+239a:002a product="WisBlock RAK3401" interface="nRF Serial" → nrf-bootloader
+    RAK WisMesh 1W Booster (3401 + 13302) | nrf52840 | bootloader
+
+239a:002a product="WisBlock RAK4631" interface="nRF Serial" → nrf-bootloader
+    GAT-IoT GAT562 Tracker | nrf52840 | bootloader
+    GAT-IoT GAT562 30s | nrf52840 | bootloader
+    Keepteen LT1 | nrf52840 | bootloader | With the catalog's RAK4631 bootloader installed.
+    RAK WisBlock / WisMesh (RAK 4631) | nrf52840 | bootloader
+    Muzi Works R1 Neo | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the RAK4631's.
+
+239a:002a product="WisMesh Tag" interface="nRF Serial" → nrf-bootloader
+    RAK WisMesh Tag | nrf52840 | bootloader
+
+239a:0071 product="?" interface="" → nrf-bootloader
+    Heltec Mesh Node T096 | nrf52840 | bootloader
+    Heltec Mesh Node T1 | nrf52840 | bootloader
+    Heltec T114 | nrf52840 | bootloader
+    Heltec MeshTower V2 | nrf52840 | bootloader | unverified | Unverified: its bootloader's USB identity isn't known.
+
+239a:0071 product="HT-n5262" interface="nRF Serial" → nrf-bootloader
+    Heltec T114 | nrf52840 | bootloader
+    Heltec MeshTower V2 | nrf52840 | bootloader | unverified | Unverified: its bootloader's USB identity isn't known.
+
+239a:0071 product="T1" interface="nRF Serial" → nrf-bootloader
+    Heltec Mesh Node T1 | nrf52840 | bootloader
+    Heltec MeshTower V2 | nrf52840 | bootloader | unverified | Unverified: its bootloader's USB identity isn't known.
+
+239a:0071 product="Tracker" interface="nRF Serial" → nrf-bootloader
+    Heltec Mesh Node T096 | nrf52840 | bootloader
+    Heltec MeshTower V2 | nrf52840 | bootloader | unverified | Unverified: its bootloader's USB identity isn't known.
+
+239a:0071 product="a product the table doesn't name" interface="nRF Serial" → nrf-bootloader
+    Heltec Mesh Node T096 | nrf52840 | bootloader
+    Heltec Mesh Node T1 | nrf52840 | bootloader
+    Heltec T114 | nrf52840 | bootloader
+    Heltec MeshTower V2 | nrf52840 | bootloader | unverified | Unverified: its bootloader's USB identity isn't known.
+
+239a:00b3 product="?" interface="" → nrf-app
+    Keepteen LT1 | nrf52840 | app
+    ProMicro nrf52 (faketec) | nrf52840 | either
+
+239a:00b3 product="Keepteen LT1" interface="TinyUSB Serial" → nrf-app
+    Keepteen LT1 | nrf52840 | app
+
+239a:00b3 product="ProMicro NRF52840" interface="TinyUSB Serial" → nrf-app
+    ProMicro nrf52 (faketec) | nrf52840 | app
+
+239a:00da product="?" interface="" → nrf-bootloader
+    Elecrow ThinkNode M1 | nrf52840 | bootloader
+    Elecrow ThinkNode M3 | nrf52840 | bootloader
+    Elecrow ThinkNode M6 | nrf52840 | bootloader
+
+239a:00da product="ThinkNode-M3" interface="nRF Serial" → nrf-bootloader
+    Elecrow ThinkNode M3 | nrf52840 | bootloader
+
+239a:00da product="ThinkNodeM1" interface="nRF Serial" → nrf-bootloader
+    Elecrow ThinkNode M1 | nrf52840 | bootloader
+
+239a:00da product="ThinkNodeM6" interface="nRF Serial" → nrf-bootloader
+    Elecrow ThinkNode M6 | nrf52840 | bootloader
+
+239a:4405 product="?" interface="" → nrf-app
+    Heltec MeshPocket | nrf52840 | app
+    Heltec MeshTower V2 | nrf52840 | app
+    Elecrow ThinkNode M1 | nrf52840 | app
+    Elecrow ThinkNode M3 | nrf52840 | app
+    Elecrow ThinkNode M4 | nrf52840 | app
+    Elecrow ThinkNode M6 | nrf52840 | app
+
+239a:4405 product="HT-n5262" interface="TinyUSB Serial" → nrf-app
+    Heltec MeshPocket | nrf52840 | app
+    Heltec MeshTower V2 | nrf52840 | app
+
+239a:4405 product="elecrow_eink" interface="TinyUSB Serial" → nrf-app
+    Elecrow ThinkNode M1 | nrf52840 | app
+    Elecrow ThinkNode M3 | nrf52840 | app
+
+239a:4405 product="elecrow_solar" interface="TinyUSB Serial" → nrf-app
+    Elecrow ThinkNode M6 | nrf52840 | app
+
+239a:4405 product="elecrow_thinknode_m4" interface="TinyUSB Serial" → nrf-app
+    Elecrow ThinkNode M4 | nrf52840 | app
+
+239a:8029 product="?" interface="" → nrf-app
+    LilyGo T-Echo | nrf52840 | app
+    LilyGo T-Echo Lite | nrf52840 | app
+    LilyGo T-Echo Card | nrf52840 | app
+    GAT-IoT GAT562 Tracker | nrf52840 | app
+    GAT-IoT GAT562 30s | nrf52840 | app
+    Heltec Mesh Node T096 | nrf52840 | app
+    Heltec Mesh Node T1 | nrf52840 | app
+    Heltec T114 | nrf52840 | app
+    Heltec MeshSolar / MeshTower | nrf52840 | app
+    Heltec MeshTower V2 | nrf52840 | app | Shows this when running the KISS modem firmware, which is the MeshSolar's.
+    RAK WisBlock / WisMesh (RAK 4631) | nrf52840 | app
+    RAK WisMesh 1W Booster (3401 + 13302) | nrf52840 | app
+    RAK WisMesh Tag | nrf52840 | app
+    Seeed Studio SenseCAP T1000-E | nrf52840 | app
+    Seeed Studio SenseCAP MeshTracker X1 | nrf52840 | app
+    UnitEng Nano G2 Ultra | nrf52840 | app
+    Muzi Works R1 Neo | nrf52840 | app
+
+239a:8029 product="BQ nRF52840" interface="TinyUSB Serial" → nrf-app
+    UnitEng Nano G2 Ultra | nrf52840 | app
+
+239a:8029 product="HT-n5262" interface="TinyUSB Serial" → nrf-app
+    Heltec T114 | nrf52840 | app
+    Heltec MeshSolar / MeshTower | nrf52840 | app
+    Heltec MeshTower V2 | nrf52840 | app | Shows this when running the KISS modem firmware, which is the MeshSolar's.
+
+239a:8029 product="HT-n5262G" interface="TinyUSB Serial" → nrf-app
+    Heltec Mesh Node T096 | nrf52840 | app
+
+239a:8029 product="HT-n5262T1" interface="TinyUSB Serial" → nrf-app
+    Heltec Mesh Node T1 | nrf52840 | app
+
+239a:8029 product="NRF52 DK" interface="TinyUSB Serial" → nrf-app
+    LilyGo T-Echo | nrf52840 | app
+    LilyGo T-Echo Lite | nrf52840 | app
+    LilyGo T-Echo Card | nrf52840 | app
+
+239a:8029 product="T1000-E-BOOT" interface="TinyUSB Serial" → nrf-app
+    Seeed Studio SenseCAP T1000-E | nrf52840 | app
+
+239a:8029 product="WisCore RAK3401 Board" interface="TinyUSB Serial" → nrf-app
+    RAK WisMesh 1W Booster (3401 + 13302) | nrf52840 | app
+
+239a:8029 product="WisCore RAK4631 Board" interface="TinyUSB Serial" → nrf-app
+    GAT-IoT GAT562 Tracker | nrf52840 | app
+    GAT-IoT GAT562 30s | nrf52840 | app
+    RAK WisBlock / WisMesh (RAK 4631) | nrf52840 | app
+    RAK WisMesh Tag | nrf52840 | app
+    Muzi Works R1 Neo | nrf52840 | app
+
+239a:8029 product="X1-BOOT" interface="TinyUSB Serial" → nrf-app
+    Seeed Studio SenseCAP MeshTracker X1 | nrf52840 | app
+
+2886:0044 product="?" interface="" → nrf-bootloader
+    Ikoka Stick | nrf52840 | bootloader
+    Ikoka Nano | nrf52840 | bootloader
+    Seeed Studio SenseCAP Solar Node P1 | nrf52840 | bootloader
+    Seeed Studio Xiao nRF52 WIO | nrf52840 | bootloader
+
+2886:0044 product="SenseCAP Solar Node P1" interface="nRF Serial" → nrf-bootloader
+    Seeed Studio SenseCAP Solar Node P1 | nrf52840 | bootloader
+
+2886:0044 product="XIAO nRF52840" interface="nRF Serial" → nrf-bootloader
+    Ikoka Stick | nrf52840 | bootloader
+    Ikoka Nano | nrf52840 | bootloader
+    Seeed Studio Xiao nRF52 WIO | nrf52840 | bootloader
+
+2886:0045 product="?" interface="" → nrf-bootloader
+    Seeed Studio Xiao nRF52 WIO | nrf52840 | bootloader
+
+2886:0045 product="XIAO nRF52840 Sense" interface="nRF Serial" → nrf-bootloader
+    Seeed Studio Xiao nRF52 WIO | nrf52840 | bootloader
+
+2886:0057 product="?" interface="" → nrf-bootloader
+    Seeed Studio SenseCAP T1000-E | nrf52840 | bootloader
+    Seeed Studio SenseCAP MeshTracker X1 | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the T1000-E's.
+
+2886:0057 product="T1000-E" interface="nRF Serial" → nrf-bootloader
+    Seeed Studio SenseCAP T1000-E | nrf52840 | bootloader
+    Seeed Studio SenseCAP MeshTracker X1 | nrf52840 | bootloader | unverified | Unverified: its bootloader is assumed to be the T1000-E's.
+
+2886:0059 product="?" interface="" → nrf-app
+    Seeed Studio SenseCAP Solar Node P1 | nrf52840 | app
+
+2886:0059 product="XIAO nRF52840" interface="TinyUSB Serial" → nrf-app
+    Seeed Studio SenseCAP Solar Node P1 | nrf52840 | app
+
+2886:1667 product="?" interface="" → nrf-app
+    Seeed Studio Wio Tracker L1 Pro | nrf52840 | either
+    Seeed Studio Wio Tracker L1 EINK | nrf52840 | either
+
+2886:1667 product="Seeed Wio Tracker L1" interface="TinyUSB Serial" → nrf-app
+    Seeed Studio Wio Tracker L1 Pro | nrf52840 | app
+    Seeed Studio Wio Tracker L1 EINK | nrf52840 | app
+
+2886:1667 product="Wio Tracker L1" interface="nRF Serial" → nrf-bootloader
+    Seeed Studio Wio Tracker L1 Pro | nrf52840 | bootloader
+    Seeed Studio Wio Tracker L1 EINK | nrf52840 | bootloader
+
+2886:8044 product="?" interface="" → nrf-app
+    Ikoka Stick | nrf52840 | app
+    Ikoka Nano | nrf52840 | app
+    Seeed Studio Xiao nRF52 WIO | nrf52840 | app
+
+2886:8044 product="XIAO nRF52840" interface="TinyUSB Serial" → nrf-app
+    Ikoka Stick | nrf52840 | app
+    Ikoka Nano | nrf52840 | app
+    Seeed Studio Xiao nRF52 WIO | nrf52840 | app
+
+2e8a:f00a product="?" interface="" → unknown
+    RPI Pico W (rp2040) + WaveShare SX1262 | rp2040 | app | unverified | Unverified, and meshflash can't flash it: only set up firmware already on it.
+
+2e8a:f00a product="Pico W" interface="" → unknown
+    RPI Pico W (rp2040) + WaveShare SX1262 | rp2040 | app | unverified | Unverified, and meshflash can't flash it: only set up firmware already on it.
+
+303a:0002 product="?" interface="" → esp-tinyusb
+    Heltec Vision Master E213 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+    Heltec Vision Master E290 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+    Heltec Wireless Tracker v2 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:0002 product="Heltec Vision Master E213" interface="" → esp-tinyusb
+    Heltec Vision Master E213 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:0002 product="Heltec Vision Master E290" interface="" → esp-tinyusb
+    Heltec Vision Master E290 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:0002 product="heltec_tracker v2" interface="" → esp-tinyusb
+    Heltec Wireless Tracker v2 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:0009 product="" interface="" → esp-tinyusb
+    Heltec v4 + Expansion Kit (Touch) | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Heltec v4 R8 + Expansion Kit (Touch) | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Deck | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Deck Max | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Deck Pro | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Deck Pro v1.1 | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T5 E-Paper S3 Pro (H752-XX) | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Lora Pager | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Display Pro | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Watch S3 Plus | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Watch Ultra | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Seeed Studio Wio Tracker L2 Pro | ? | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T3 S3 (SX126x) | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T3 S3 (SX127x) | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Beam 1W | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    LilyGo T-Beam Supreme (SX1262) | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Heltec Vision Master E213 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Heltec Vision Master E290 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Heltec v4 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Heltec v4 R8 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Heltec Wireless Tracker v2 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Heltec Wireless Tracker | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    RAK WisBlock 3112 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    Seeed Studio Xiao S3 WIO | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    UnitEng/BQ Voyage Station G3 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+    UnitEng Station G2 | esp32s3 | rom | unverified | Unverified: an ESP32-S3 in ROM download mode on its USB-OTG port, which MeshCore boards don't use.
+
+303a:1001 product="?" interface="" → esp-tinyusb
+    LilyGo T-Beam 1W | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+    UnitEng/BQ Voyage Station G3 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+    UnitEng Station G2 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:1001 product="BQ Station G2" interface="" → esp-tinyusb
+    UnitEng Station G2 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:1001 product="LilyGo TBeam-1W" interface="" → esp-tinyusb
+    LilyGo T-Beam 1W | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:1001 product="Station G3 ESP32" interface="" → esp-tinyusb
+    UnitEng/BQ Voyage Station G3 | esp32s3 | app | unverified | Worked out from the firmware's source, not yet seen on a real board.
+
+303a:1001 product="USB JTAG/serial debug unit" interface="" → esp-usb-jtag
+    Heltec v4 + Expansion Kit (Touch) | esp32s3 | either
+    Heltec v4 R8 + Expansion Kit (Touch) | esp32s3 | either
+    LilyGo T-Deck | esp32s3 | either
+    LilyGo T-Deck Max | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T-Deck Pro | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T-Deck Pro v1.1 | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T5 E-Paper S3 Pro (H752-XX) | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T-Lora Pager | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T-Display Pro | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T-Watch S3 Plus | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T-Watch Ultra | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    Seeed Studio Wio Tracker L2 Pro | ? | rom | unverified | Ripple-only board: its USB identity and chip are unverified.
+    LilyGo T3 S3 (SX126x) | esp32s3 | either
+    LilyGo T3 S3 (SX127x) | esp32s3 | either
+    LilyGo T-Beam 1W | esp32s3 | rom | Only in ROM download mode; its firmware shows a different USB identity.
+    LilyGo T-Beam Supreme (SX1262) | esp32s3 | either
+    Heltec Vision Master E213 | esp32s3 | rom | Only in ROM download mode; its firmware shows a different USB identity.
+    Heltec Vision Master E290 | esp32s3 | rom | Only in ROM download mode; its firmware shows a different USB identity.
+    Heltec v4 | esp32s3 | either
+    Heltec v4 R8 | esp32s3 | either
+    Heltec Wireless Tracker v2 | esp32s3 | rom | Only in ROM download mode; its firmware shows a different USB identity.
+    Heltec Wireless Tracker | esp32s3 | either | unverified | Worked out from the firmware's source, not yet seen on a real board.
+    RAK WisBlock 3112 | esp32s3 | either | unverified | Worked out from the firmware's source, not yet seen on a real board.
+    Seeed Studio Xiao C3 | esp32c3 | either
+    Seeed Studio Xiao S3 WIO | esp32s3 | either
+    UnitEng/BQ Voyage Station G3 | esp32s3 | rom | Only in ROM download mode; its firmware shows a different USB identity.
+    UnitEng Station G2 | esp32s3 | either | Shows this in ROM download mode, and when running the KISS modem firmware.
