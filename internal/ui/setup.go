@@ -82,6 +82,9 @@ type setupScreen struct {
 	admin, guest editor
 	// The open text box (setupEditing) on focus: a copy of the row's text, kept only by Enter or Tab.
 	box editor
+	// boxFrom is the text the box opened with, which may be the row's text cut to the box's limit (a node name over
+	// 23 bytes): until the owner types, the row's own value stands for a draft and for Esc, never the cut text.
+	boxFrom string
 	// cancelled is the text a text box held when Esc cancelled it, kept as the draft's for setupCancelKeep.
 	cancelled setupCancelled
 	// The open pick list (setupPicking) on focus: the option selected and the scroll offset.
@@ -328,7 +331,7 @@ func (m *Model) setupHelp() []string {
 			"In a text box:",
 			"enter          keep it",
 			"esc            cancel: the old value comes back",
-			"tab            keep it and go to the next row",
+			"tab            keep it and open the next row",
 			"backspace      delete the character before the cursor",
 		}
 	case setupPicking:
@@ -336,7 +339,7 @@ func (m *Model) setupHelp() []string {
 			"j/k            pick a value",
 			"enter          keep it",
 			"esc            cancel: the old value stays",
-			"tab            keep it and go to the next row",
+			"tab            keep it and open the next row",
 		}
 	case setupPresets:
 		return []string{

@@ -6,6 +6,7 @@ package ui
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -203,7 +204,7 @@ func setupAdvertText(mins int) string {
 
 // setupText is a row's text as it stands: the open text box's while it is being edited. Never a password's.
 func (s *setupScreen) setupText(r setupRow) string {
-	if s.mode == setupEditing && s.focus == r && setupRows[r].kind != setupSecret {
+	if s.mode == setupEditing && s.focus == r && setupRows[r].kind != setupSecret && s.box.Value() != s.boxFrom {
 		return s.box.Value()
 	}
 	return s.vals[r]
@@ -593,13 +594,32 @@ func (m *Model) setupFormKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// setupOpens says row r can be opened: every row but the path hash on firmware older than v1.14.0.
+func (m *Model) setupOpens(r setupRow) bool { return r != setupPathHash || m.setupHasPathHash() }
+
+// setupHolds says row r would open holding its value as it is. A text box holds no more than its limit (a node keeps
+// a name of up to 31 bytes, the box 23), and a pick list only its own values (a node's bandwidth can be one the list
+// hasn't, and the list would open on the nearest), so opening such a row and keeping it would change it. A password's
+// box always holds its runes: setupPasswordBox limits them when the form is built, and the box keeps no more.
+func (m *Model) setupHolds(r setupRow) bool {
+	v := m.setup.vals[r]
+	switch setupRows[r].kind {
+	case setupPicked:
+		return slices.ContainsFunc(pickOptions(r), func(o pickOption) bool { return o.value == v })
+	case setupTyped:
+		box := newBytesEditor(v, setupRows[r].limit)
+		return box.Value() == v
+	}
+	return true
+}
+
 // setupOpenRow opens the focused row: a text box holding its text, or a pick list on its value.
 func (m *Model) setupOpenRow() {
 	s := &m.setup
 	r := s.focus
 	switch setupRows[r].kind {
 	case setupPicked:
-		if r == setupPathHash && !m.setupHasPathHash() {
+		if !m.setupOpens(r) {
 			m.note = "The path hash needs firmware v1.14.0 or newer; this node runs " +
 				s.node.Info.Version.String() + "."
 			return
@@ -611,26 +631,25 @@ func (m *Model) setupOpenRow() {
 		s.mode = setupEditing
 	default:
 		s.box = newBytesEditor(s.vals[r], setupRows[r].limit)
+		s.boxFrom = s.box.Value()
 		s.mode = setupEditing
 	}
 }
 
-// setupBoxKey handles a key in a text box (S21): Enter keeps, Esc cancels, Tab keeps and moves to the next row (a
-// press: the frame drops a held Tab's repeats), and the rest edit the text.
+// setupBoxKey handles a key in a text box (S21): Enter keeps, Esc cancels, Tab and Shift+Tab keep it and open the
+// next or the previous row (setupChain; a press: the frame drops a held Tab's repeats), and the rest edit the text.
 func (m *Model) setupBoxKey(msg tea.KeyMsg) {
 	s := &m.setup
 	switch msg.Type {
 	case tea.KeyEnter:
 		m.setupKeepBox()
 	case tea.KeyTab:
-		m.setupKeepBox()
-		m.setupMove(1, true)
+		m.setupChain(1)
 	case tea.KeyShiftTab:
-		m.setupKeepBox()
-		m.setupMove(-1, true)
+		m.setupChain(-1)
 	case tea.KeyEsc:
 		r := s.focus
-		if setupRows[r].kind != setupSecret && s.box.Value() != s.vals[r] {
+		if setupRows[r].kind != setupSecret && s.box.Value() != s.boxFrom {
 			s.cancelled = setupCancelled{ok: true, row: r, text: s.box.Value(), at: m.now()}
 		}
 		s.box.Clear()
@@ -659,6 +678,34 @@ func (m *Model) setupKeepBox() {
 		s.box.Clear()
 	}
 	s.mode = setupForm
+}
+
+// setupChain is Tab (d 1) or Shift+Tab (d -1) in an open text box or pick list. The owner's answer to the Phase 2
+// report (25 Nov 2026) is that Tab walks through the whole form: it keeps what is open, as Enter does, and opens
+// the next row that way, a text box or a pick list alike, passing over a row that can't open (the path hash before
+// v1.14.0) without its note. With no row left to open that way, from the last row (or the first, for Shift+Tab), it
+// only keeps: the form is closed, ready for y, and the focus stays where it is rather than going round to a row
+// already kept. A row whose box or list can't hold its value as it is (setupHolds) stops the walk with the focus on
+// it and the form closed, so a Tab never changes a row the owner hasn't opened: its value and the problem under it
+// stay, and Enter opens it as on any row. Tab on the form with nothing open still only moves (setupFormKey).
+func (m *Model) setupChain(d int) {
+	s := &m.setup
+	if s.mode == setupPicking {
+		m.pickKeep()
+	} else {
+		m.setupKeepBox()
+	}
+	rows := m.setupFormRows()
+	at := slices.Index(rows, s.focus)
+	for i := at + d; at >= 0 && i >= 0 && i < len(rows); i += d {
+		if m.setupOpens(rows[i]) {
+			s.focus = rows[i]
+			if m.setupHolds(rows[i]) {
+				m.setupOpenRow()
+			}
+			return
+		}
+	}
 }
 
 // pickOption is one value of a pick list: its text as the form keeps it, and as the list shows it.
@@ -705,28 +752,32 @@ func (m *Model) pickOpen(r setupRow) {
 	s.mode = setupPicking
 }
 
-// pickKey handles a key in a pick list: j/k pick, Enter keeps, Esc cancels, Tab keeps and moves to the next row.
+// pickKey handles a key in a pick list: j/k pick, Enter keeps, Esc cancels, Tab and Shift+Tab keep it and open the
+// next or the previous row (setupChain).
 func (m *Model) pickKey(msg tea.KeyMsg) {
 	s := &m.setup
 	opts := pickOptions(s.focus)
-	keep := func() { s.vals[s.focus], s.mode = opts[s.pick].value, setupForm }
 	switch msg.String() {
 	case "j", "down":
 		s.pick = min(s.pick+1, len(opts)-1)
 	case "k", "up":
 		s.pick = max(s.pick-1, 0)
 	case "enter":
-		keep()
+		m.pickKeep()
 	case "tab":
-		keep()
-		m.setupMove(1, true)
+		m.setupChain(1)
 	case "shift+tab":
-		keep()
-		m.setupMove(-1, true)
+		m.setupChain(-1)
 	case "esc":
 		s.mode = setupForm
 	}
 	m.setupCheck()
+}
+
+// pickKeep keeps the open pick list's selection as its row's value and closes it.
+func (m *Model) pickKeep() {
+	s := &m.setup
+	s.vals[s.focus], s.mode = pickOptions(s.focus)[s.pick].value, setupForm
 }
 
 // pickView is the open pick list under its row's label, scrolled to keep the selection in view.

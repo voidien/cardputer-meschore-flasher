@@ -95,8 +95,9 @@ func (m *Model) presetView(w, h int) ([]string, string) {
 }
 
 // presetPathHash is the path hash size the presets with radio r give, for the form's default (owner question 6:
-// "the preset's"), or 0 when none gives one or they don't agree: EU/UK (Narrow), Netherlands (Limburg) and
-// Switzerland share one radio but not a path hash, and a guess there would set another country's.
+// "the preset's"), or 0 when none gives one or they don't agree (the owner's answer to the Phase 2 report): EU/UK
+// (Narrow), Netherlands (Limburg) and Switzerland share one radio but not a path hash, and a guess there would set
+// another country's.
 func presetPathHash(r nodecli.Radio) int {
 	n := 0
 	for _, p := range nodecli.Presets {

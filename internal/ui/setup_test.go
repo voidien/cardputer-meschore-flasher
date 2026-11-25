@@ -976,8 +976,9 @@ func TestSetupPresetApplies(t *testing.T) {
 	}
 }
 
-// Esc in a text box restores the old value; Tab keeps it and moves on; pick lists keep with Enter and cancel with
-// Esc.
+// Esc in a text box restores the old value; Tab keeps it and opens the next row (TestSetupTabWalksTheForm); pick
+// lists keep with Enter and cancel with Esc; Tab and Shift+Tab on the form, nothing open, move and wrap, opening
+// nothing.
 func TestSetupEditKeys(t *testing.T) {
 	d, _ := setupDriver(t, 45, 10)
 	d.keys("enter", "ctrl+u")
@@ -989,10 +990,12 @@ func TestSetupEditKeys(t *testing.T) {
 	d.keys("enter")
 	d.typeText(" East")
 	d.keys("tab")
-	if d.m.setup.vals[setupName] != "Hilltop 2 East" || d.m.setup.focus != setupFreq || d.m.setup.mode != setupForm {
-		t.Errorf("Tab in the box: name %q, focus %d", d.m.setup.vals[setupName], d.m.setup.focus)
+	if d.m.setup.vals[setupName] != "Hilltop 2 East" || d.m.setup.focus != setupFreq ||
+		d.m.setup.mode != setupEditing || d.m.setup.box.Value() != "869.618" {
+		t.Errorf("Tab in the box: name %q, focus %d, mode %d, box %q", d.m.setup.vals[setupName], d.m.setup.focus,
+			d.m.setup.mode, d.m.setup.box.Value())
 	}
-	d.keys("j", "enter", "j", "esc")
+	d.keys("esc", "j", "enter", "j", "esc")
 	if d.m.setup.vals[setupBW] != "62.5" {
 		t.Errorf("Esc on the pick list changed the bandwidth to %q", d.m.setup.vals[setupBW])
 	}
@@ -1011,12 +1014,271 @@ func TestSetupEditKeys(t *testing.T) {
 		t.Errorf("? j y in a text box aren't letters: %q", d.m.setup.box.Value())
 	}
 	d.keys("esc", "shift+tab")
-	if d.m.setup.focus != setupAdmin {
-		t.Errorf("Shift+Tab from the first row went to %d", d.m.setup.focus)
+	if d.m.setup.focus != setupAdmin || d.m.setup.mode != setupForm {
+		t.Errorf("Shift+Tab on the form from the first row went to %d (mode %d)", d.m.setup.focus, d.m.setup.mode)
 	}
 	d.keys("tab")
-	if d.m.setup.focus != setupName {
-		t.Errorf("Tab from the last row went to %d", d.m.setup.focus)
+	if d.m.setup.focus != setupName || d.m.setup.mode != setupForm {
+		t.Errorf("Tab on the form from the last row went to %d (mode %d)", d.m.setup.focus, d.m.setup.mode)
+	}
+}
+
+// setupWalkInput is what a Tab walk gives each row before its Tab (a text box's new text, typed after Ctrl+U, or a
+// pick list's key) and what the row then keeps. A password is compared, never printed.
+var setupWalkInput = map[setupRow]struct{ in, want string }{
+	setupName:     {"Hilltop East", "Hilltop East"},
+	setupFreq:     {"869.525", "869.525"},
+	setupBW:       {"j", "125"},
+	setupSF:       {"k", "7"},
+	setupCR:       {"k", "7"},
+	setupTx:       {"20", "20"},
+	setupPathHash: {"j", "2"},
+	setupLat:      {"51.5", "51.5"},
+	setupLon:      {"-0.12", "-0.12"},
+	setupAdvert:   {"120", "120"},
+	setupAdmin:    {setupTestAdmin, setupTestAdmin},
+	setupGuest:    {"hello", "hello"},
+}
+
+// setupKept is row r's kept value: a password's runes, or the row's text.
+func setupKept(s *setupScreen, r setupRow) string {
+	switch r {
+	case setupAdmin:
+		return string(s.admin.text)
+	case setupGuest:
+		return string(s.guest.text)
+	}
+	return s.vals[r]
+}
+
+// setupOpenMode is the mode row r is in while it is open: a pick list, or a text box.
+func setupOpenMode(r setupRow) setupMode {
+	if setupRows[r].kind == setupPicked {
+		return setupPicking
+	}
+	return setupEditing
+}
+
+// Tab in an open text box or pick list keeps it and opens the next row, box or list alike, so Tab walks through the
+// whole form (the owner's answer to the Phase 2 report, 25 Nov 2026); from the last row (Admin password on a
+// repeater, Guest password on a room server) it keeps it and closes, the focus staying there, ready for y.
+// Shift+Tab walks back the same way and closes on Name. A password typed then Tab is kept as the password, its box's
+// runes moved, and never reaches the draft, the screen or screen.log.
+func TestSetupTabWalksTheForm(t *testing.T) {
+	for _, role := range []string{nodecli.RoleRepeater, nodecli.RoleRoomServer} {
+		t.Run(role, func(t *testing.T) {
+			p := heltecV4Port("ttyACM0")
+			d := newDriver(t, 45, 10, setupBackend(p, setupNode(p, role, "v1.18.0")))
+			setupNeedsStore(t, d)
+			setupOpen(d, p)
+			s := &d.m.setup
+			rows := d.m.setupFormRows()
+			last := setupAdmin
+			if role == nodecli.RoleRoomServer {
+				last = setupGuest
+			}
+			if rows[len(rows)-1] != last {
+				t.Fatalf("the form's last row is %d, want %d", rows[len(rows)-1], last)
+			}
+
+			d.keys("enter")
+			for _, r := range rows {
+				if s.focus != r || s.mode != setupOpenMode(r) {
+					t.Fatalf("row %d (%s) isn't open: focus %d, mode %d", r, setupRows[r].label, s.focus, s.mode)
+				}
+				if r == setupGuest && string(s.box.text) != setupTestGuest {
+					t.Error("the guest password's box didn't open on the node's guest password")
+				}
+				in := setupWalkInput[r]
+				if s.mode == setupPicking {
+					d.keys(in.in)
+				} else {
+					d.keys("ctrl+u")
+					d.typeText(in.in)
+				}
+				d.keys("tab")
+				if got := setupKept(s, r); got != in.want {
+					if setupRows[r].kind == setupSecret {
+						t.Errorf("Tab didn't keep the %s", strings.ToLower(setupRows[r].label))
+					} else {
+						t.Errorf("Tab kept %s %q, want %q", setupRows[r].label, got, in.want)
+					}
+				}
+				if d.m.note != "" {
+					t.Errorf("Tab from %s said %q", setupRows[r].label, d.m.note)
+				}
+			}
+			if s.focus != last || s.mode != setupForm || len(s.box.text) != 0 {
+				t.Fatalf("Tab from the last row: focus %d, mode %d, box %d runes; want it closed on %d", s.focus,
+					s.mode, len(s.box.text), last)
+			}
+			probs, hint := d.m.setupProblemRows(), hintOf(d)
+			if len(probs) != 0 || hint != "enter edit  p presets  y send  ? help" {
+				t.Errorf("not ready for y: problems on rows %v, hint %q\n%s", probs, hint, d.view())
+			}
+
+			// Back with Shift+Tab from the last row, opened again: each row before it opens, nothing changes, and
+			// Shift+Tab on Name closes it there.
+			kept := map[setupRow]string{}
+			for _, r := range rows {
+				kept[r] = setupKept(s, r)
+			}
+			d.keys("enter")
+			for i := len(rows) - 1; i >= 0; i-- {
+				if r := rows[i]; s.focus != r || s.mode != setupOpenMode(r) {
+					t.Fatalf("Shift+Tab: row %d (%s) isn't open: focus %d, mode %d", r, setupRows[r].label, s.focus,
+						s.mode)
+				}
+				d.keys("shift+tab")
+			}
+			if s.focus != setupName || s.mode != setupForm {
+				t.Errorf("Shift+Tab from Name: focus %d, mode %d; want it closed on Name", s.focus, s.mode)
+			}
+			for _, r := range rows {
+				if setupKept(s, r) != kept[r] {
+					t.Errorf("walking back changed %s", setupRows[r].label)
+				}
+			}
+
+			d.m.SaveUnsent()
+			b, err := os.ReadFile(filepath.Join(d.configDir, store.DraftsFile))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(b), "Hilltop East") || !strings.Contains(string(b), "869.525") {
+				t.Fatalf("the walk's draft wasn't saved: %s", b)
+			}
+			for _, pw := range setupTestPasswords {
+				if strings.Contains(string(b), pw) {
+					t.Error("drafts.json holds a password")
+				}
+			}
+			d.noSecret(setupTestAdmin)
+			d.noSecret(setupTestGuest)
+			d.noSecret("hello")
+		})
+	}
+}
+
+// Help says what Tab does in a text box and in a pick list (no golden reaches those lines): it keeps and opens the
+// next row.
+func TestSetupHelpTabOpensTheNextRow(t *testing.T) {
+	d, _ := setupDriver(t, 45, 10)
+	const tab = "tab            keep it and open the next row"
+	if help := strings.Join(d.m.setupHelp(), "\n"); !strings.Contains(help, "In a text box:\n") ||
+		!strings.Contains(help, tab) {
+		t.Errorf("the form's Help, for its text boxes:\n%s", help)
+	}
+	setupFocus(d, setupBW)
+	d.keys("enter")
+	if help := strings.Join(d.m.setupHelp(), "\n"); !strings.Contains(help, tab) {
+		t.Errorf("a pick list's Help:\n%s", help)
+	}
+}
+
+// On firmware older than v1.14.0 the path hash row can't open: the walk passes over it both ways, without the note
+// Enter on it gives.
+func TestSetupTabSkipsPathHashOnOldFirmware(t *testing.T) {
+	p := heltecV4Port("ttyACM0")
+	n := setupNode(p, nodecli.RoleRepeater, "v1.13.0-295f67d (Build: 15-Feb-2026)")
+	d := newDriver(t, 45, 10, setupBackend(p, n))
+	setupOpen(d, p)
+	setupFocus(d, setupCR)
+	d.keys("enter", "tab")
+	if d.m.setup.focus != setupTx || d.m.setup.mode != setupEditing {
+		t.Fatalf("Tab from Coding rate: focus %d, mode %d", d.m.setup.focus, d.m.setup.mode)
+	}
+	d.keys("tab")
+	if d.m.setup.focus != setupLat || d.m.setup.mode != setupEditing || d.m.note != "" {
+		t.Errorf("Tab from TX power on v1.13.0: focus %d, mode %d, note %q; want Latitude open, no note",
+			d.m.setup.focus, d.m.setup.mode, d.m.note)
+	}
+	d.keys("shift+tab")
+	if d.m.setup.focus != setupTx || d.m.setup.mode != setupEditing || d.m.note != "" {
+		t.Errorf("Shift+Tab from Latitude on v1.13.0: focus %d, mode %d, note %q; want TX power open, no note",
+			d.m.setup.focus, d.m.setup.mode, d.m.note)
+	}
+	if set, _ := d.m.setupSettings(); set.PathHashBytes != 0 || d.m.setup.vals[setupPathHash] != "" {
+		t.Errorf("the walk gave v1.13.0 a path hash: %d, %q", set.PathHashBytes, d.m.setup.vals[setupPathHash])
+	}
+}
+
+// The walk opens a row only when its text box or pick list holds the row's value as it is, so a Tab never changes a
+// row the owner hasn't opened: a name longer than its box takes (a node keeps up to 31 bytes, the box 23) or a
+// bandwidth not in the list stops the walk there, the form closed with the focus on it, its value and its problem as
+// they were, and nothing for a draft. A second Tab, the form closed, only moves; Enter opens the row, as on any row.
+func TestSetupTabStopsOnARowItCantHold(t *testing.T) {
+	p := heltecV4Port("ttyACM0")
+	for _, c := range []struct {
+		name, key string
+		row       setupRow
+		value     string
+		node      func(n *flash.Node)
+	}{
+		{"name over 23 bytes", "shift+tab", setupName, "Hilltop North Ridge Repeater",
+			func(n *flash.Node) { n.Current.Name = "Hilltop North Ridge Repeater" }},
+		{"bandwidth not in the list", "tab", setupBW, "203.125",
+			func(n *flash.Node) { n.Current.Radio.BWkHz = 203.125 }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			n := setupNode(p, nodecli.RoleRepeater, "v1.18.0")
+			c.node(&n)
+			d := newDriver(t, 45, 10, setupBackend(p, n))
+			setupNeedsStore(t, d)
+			setupOpen(d, p)
+			s := &d.m.setup
+			prob := s.problems[c.row]
+			if s.vals[c.row] != c.value || prob == "" {
+				t.Fatalf("the form opened with %s %q, problem %q; want %q with a problem", setupRows[c.row].label,
+					s.vals[c.row], prob, c.value)
+			}
+			setupFocus(d, setupFreq)
+			d.keys("enter", c.key)
+			if s.focus != c.row || s.mode != setupForm || s.vals[c.row] != c.value || s.problems[c.row] != prob {
+				t.Errorf("%s from Frequency: focus %d, mode %d, %s %q, problem %q; want it closed on %s as it was",
+					c.key, s.focus, s.mode, setupRows[c.row].label, s.vals[c.row], s.problems[c.row],
+					setupRows[c.row].label)
+			}
+			d.m.SaveUnsent()
+			if draft, ok := d.st.LoadDraft(p.DraftKey()); ok {
+				t.Errorf("a walk that changed nothing saved a draft: %+v", draft)
+			}
+			d.keys(c.key)
+			if s.mode != setupForm || s.vals[c.row] != c.value || s.problems[c.row] != prob {
+				t.Errorf("a second %s: mode %d, %s %q, problem %q", c.key, s.mode, setupRows[c.row].label,
+					s.vals[c.row], s.problems[c.row])
+			}
+			setupFocus(d, c.row)
+			d.keys("enter")
+			if s.mode != setupOpenMode(c.row) {
+				t.Errorf("Enter on %s didn't open it: mode %d", setupRows[c.row].label, s.mode)
+			}
+		})
+	}
+}
+
+// A held Tab in a text box acts once, as its first press (the next row opens), and then locks the screen: its
+// repeats never walk on through the form (in a terminal, where the frame finds the hold; on the LCD internal/screen
+// sends only the press). Unlocked, the next row's box is still open and the first row kept.
+func TestSetupHeldTabOpensOneRow(t *testing.T) {
+	d, _ := setupDriver(t, 45, 10, func(o *Options) { o.TerminalKeys = true })
+	d.keys("enter")
+	d.typeText(" East")
+	lockHoldTab(d, lockHold+33*time.Millisecond)
+	if !d.m.lock.on {
+		t.Fatal("a 3 s Tab hold in a text box didn't lock")
+	}
+	if d.m.setup.vals[setupName] != "Hilltop 2 East" || d.m.setup.focus != setupFreq ||
+		d.m.setup.mode != setupEditing {
+		t.Errorf("under the lock: name %q, focus %d, mode %d; want Frequency open", d.m.setup.vals[setupName],
+			d.m.setup.focus, d.m.setup.mode)
+	}
+	d.advance(lockTabGap)
+	d.keys("tab", "enter")
+	if d.m.lock.on || d.m.setup.focus != setupFreq || d.m.setup.mode != setupEditing ||
+		d.m.setup.box.Value() != "869.618" {
+		t.Errorf("unlocked %v: focus %d, mode %d, box %q", !d.m.lock.on, d.m.setup.focus, d.m.setup.mode,
+			d.m.setup.box.Value())
 	}
 }
 
@@ -1484,5 +1746,41 @@ func TestSetupRetryRoomServerBothPasswords(t *testing.T) {
 	d.keys("?")
 	if got := setupScreenText(d); !strings.Contains(got, "type both passwords again") {
 		t.Errorf("Help doesn't say both passwords go: %s", got)
+	}
+}
+
+// A text box opened on a value it can't hold (a node name over 23 bytes, cut to the box's limit) changes nothing
+// until the owner types: neither a draft written while it is open nor Esc's kept text takes the cut name.
+func TestSetupUntouchedCutBoxSavesNothing(t *testing.T) {
+	p := heltecV4Port("ttyACM0")
+	long := "Hilltop North Ridge Repeater"
+	n := setupNode(p, nodecli.RoleRepeater, "v1.18.0")
+	n.Current.Name = long
+	d := newDriver(t, 45, 10, setupBackend(p, n))
+	setupNeedsStore(t, d)
+	setupOpen(d, p)
+	s := &d.m.setup
+	setupFocus(d, setupName)
+	d.keys("enter")
+	if s.mode != setupEditing || s.box.Value() == long {
+		t.Fatalf("Enter on the long name: mode %d, box %q; want a box holding the name cut short", s.mode,
+			s.box.Value())
+	}
+	d.m.SaveUnsent()
+	if draft, ok := d.st.LoadDraft(p.DraftKey()); ok {
+		t.Errorf("an untouched box saved a draft: %+v", draft)
+	}
+	d.keys("esc")
+	d.m.SaveUnsent()
+	if draft, ok := d.st.LoadDraft(p.DraftKey()); ok {
+		t.Errorf("Esc on an untouched box saved a draft: %+v", draft)
+	}
+	if s.vals[setupName] != long {
+		t.Errorf("the name is %q after Esc; want %q", s.vals[setupName], long)
+	}
+	d.keys("enter", "backspace", "esc")
+	d.m.SaveUnsent()
+	if draft, ok := d.st.LoadDraft(p.DraftKey()); !ok || draft.Name == "" || draft.Name == long {
+		t.Errorf("Esc after typing kept %+v (found %v); want the typed name as the draft's", draft, ok)
 	}
 }
