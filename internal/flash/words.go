@@ -39,7 +39,10 @@ const (
 	plugItIn       = "Plug it in and press r."
 	notSaved       = "The file isn't saved; press y on Confirm to download it."
 	nothingChanged = "Nothing on the node was changed."
-	zephCoreReason = "ZephCore: meshflash sets up only MeshCore's own repeater and room-server firmware."
+	// zephCoreReason follows "Running ZephCore repeater v1.18.2: " on the Board (Node.Reason); zephCoreSetup stands
+	// alone, as a stopped setup's Summary.
+	zephCoreReason = "meshflash sets up only MeshCore's own repeater and room-server firmware."
+	zephCoreSetup  = "ZephCore: " + zephCoreReason
 	unconfirmed    = "Looks like its bootloader, but meshflash can't confirm it: press reset twice quickly."
 	staleReason    = "Its last flash stopped part-way: meshflash asks you to press reset twice quickly when you flash it."
 	atStartReason  = "It was already in its bootloader when meshflash started: meshflash asks you to press reset " +
@@ -47,6 +50,14 @@ const (
 	unknownSDAsk = "The catalog doesn't say which SoftDevice this board has: if the file needs another, the " +
 		"bootloader refuses it and its app is erased. Flash anyway?"
 	pressResetTwiceStep = "Press the board's reset button twice quickly"
+	pressResetOnce      = "Press its reset button once to start it."
+	touchedState        = "Nothing was written: it may be in its bootloader now, with its old firmware."
+	// waitingOnUSB is a step waiting for the board to come back on USB; once it has, the step reads "Back on USB
+	// (ttyACM0)". A step under way says what is being done, never what it hopes for.
+	waitingOnUSB = "Waiting for it on USB"
+	// stoppingErase is the erase step's note after a stop: nrfdfu checks between frames, so the stop waits for the
+	// erase, whose running time and expected length the step shows beside it ("(0:04, about 10 s)").
+	stoppingErase = "Stopping once the erase ends"
 )
 
 // splitRecovery makes esp's and nrfdfu's Recovery text State and Recovery: its first sentence says what the board
@@ -161,11 +172,13 @@ func isZephCore(info nodecli.Info) bool {
 	return strings.Contains(strings.ToLower(info.Version.Raw), "zeph")
 }
 
-// settableReason is why a node that answered can't be set up, as a sentence ("It runs v1.10.0; flash v1.11.0 or
-// newer first.").
-func settableReason(err error) string {
-	s := strings.TrimPrefix(plain(err), "this node can't be set up here: ")
-	return sentence(s)
+// settableReason is why a node that answered can't be set up (nodecli.Info.Settable), worded to follow the Board's
+// "Running repeater v1.10.0: " (Node.Reason): "flash v1.11.0 or newer to set it up here.".
+func settableReason(info nodecli.Info) string {
+	if !info.Version.AtLeast(1, 11, 0) {
+		return "flash v1.11.0 or newer to set it up here."
+	}
+	return "meshflash sets up only repeater and room-server firmware."
 }
 
 // stopped says err is a context ending: the owner (or a quit) stopped the job.

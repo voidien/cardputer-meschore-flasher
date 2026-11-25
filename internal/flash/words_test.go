@@ -14,7 +14,8 @@ import (
 	"meshflash/internal/serialport"
 )
 
-// A cancel during the nRF52 erase says the stop waits for the erase to end: nrfdfu checks between frames.
+// A cancel during the nRF52 erase says the stop waits for the erase to end: nrfdfu checks between frames. The note
+// gives no count of seconds, which would be stale at once: the step's own clock and Expect say how long it runs.
 func TestCancelDuringEraseSaysSo(t *testing.T) {
 	clock := serialport.NewVirtualClock(nil)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -27,12 +28,16 @@ func TestCancelDuringEraseSaysSo(t *testing.T) {
 	r.eraseEnds = clock.Now().Add(8 * time.Second)
 	r.mu.Unlock()
 	clock.Advance(200 * time.Millisecond)
+	seen := j.Snapshot().Seq
 	j.Cancel()
-	deadline := time.Now().Add(5 * time.Second)
-	for j.Snapshot().Steps[i].Note == "" && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond) // AfterFunc runs on its own goroutine: wait for it in real time, briefly
+	// AfterFunc writes the note on its own goroutine, through Job.Set: wait for that change as an event.
+	wait, done := context.WithTimeout(context.Background(), 10*time.Second)
+	defer done()
+	p, err := j.Next(wait, seen)
+	if err != nil {
+		t.Fatalf("no note came: %v", err)
 	}
-	if got := j.Snapshot().Steps[i].Note; got != "Stopping once the erase ends (about 8 s)" {
+	if got := p.Steps[i].Note; got != "Stopping once the erase ends" {
 		t.Errorf("note %q", got)
 	}
 }

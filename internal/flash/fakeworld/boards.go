@@ -2,6 +2,7 @@ package fakeworld
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -543,11 +544,21 @@ func (b *Board) reset(double bool) {
 	}
 }
 
-// cmdHook is an UnplugAfterCommands or AfterCommands: when the setup commands handled reach at.
+// cmdHook is an UnplugAfterCommands or AfterCommands: when the setup commands handled reach at; or a PauseAfter:
+// when the console has handled a setup command beginning with match.
 type cmdHook struct {
 	at     int
+	match  string
 	unplug bool
 	f      func()
+}
+
+// due says the hook fires now that the setup commands handled number count, the latest being handled.
+func (h cmdHook) due(count int, handled []string) bool {
+	if h.match == "" {
+		return count >= h.at
+	}
+	return slices.ContainsFunc(handled, func(c string) bool { return strings.HasPrefix(c, h.match) })
 }
 
 func (b *Board) addHook(n int, unplug bool, f func()) {
@@ -567,16 +578,16 @@ func (b *Board) console(s *session, p []byte) []byte {
 	if s.purposeNow() != purposeSetup {
 		return out
 	}
-	handled := len(n.Commands()) - before
-	if handled == 0 {
+	handled := n.Commands()[before:]
+	if len(handled) == 0 {
 		return out
 	}
 	b.mu.Lock()
-	b.setupCmds += handled
+	b.setupCmds += len(handled)
 	var due []cmdHook
 	kept := b.hooks[:0]
 	for _, h := range b.hooks {
-		if b.setupCmds >= h.at {
+		if h.due(b.setupCmds, handled) {
 			due = append(due, h)
 		} else {
 			kept = append(kept, h)

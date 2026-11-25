@@ -27,6 +27,10 @@ func (r *flashRun) esp32(cur Port, c checked) Outcome {
 		if oerr != nil {
 			return r.espOpenFailed(cur, oerr, attempt > 0)
 		}
+		// Closed however the flash ends, a panic in a progress report included (an exclusive port left open
+		// refuses every later open of the board); the close after Flash is the usual one, and a second does no
+		// harm. The loop runs at most twice.
+		defer sp.Close()
 		_, err = esp.Flash(r.ctx, sp, c.data, esp.Options{Clock: r.clock, USBVendor: port.VID,
 			USBProduct: port.PID, ExpectChip: expect, Address: c.fl.Address, EraseChip: c.fl.EraseChip,
 			Progress: ep.progress})
@@ -36,12 +40,15 @@ func (r *flashRun) esp32(cur Port, c checked) Outcome {
 			errors.Is(err, serialport.ErrGone) && port.Kind == usbid.EspTinyUSB && r.ctx.Err() == nil {
 			// The classic reset rebooted the TinyUSB app into its ROM, which is a new USB device.
 			r.note(ep.into, "it restarted into its ROM: finding its new port")
+			r.setRisk(RiskBootloader)
 			rom, werr := nrfdfu.WaitForPort(r.ctx, r.b.find(cur, func(q usbid.Port) bool {
 				return usbid.Classify(q) == usbid.EspUSBJTAG
 			}), r.clock, nrfdfu.BootloaderWait)
 			if werr != nil {
 				if stopped(werr) {
-					return r.stoppedUntouched()
+					r.failed(ep.into, "")
+					return r.stoppedInBootloader(cur, "Stopped while finding its ROM's port, after it restarted "+
+						"into its ROM.", "Nothing was written: it is in its ROM bootloader now, with its old firmware.")
 				}
 				return r.espFailed(cur, fe, err, ep)
 			}

@@ -183,3 +183,16 @@ func itoa(n int) string {
 	}
 	return string(b)
 }
+
+// The real port has only the Port methods: internal/flash tells a port what it opened it for only through an
+// optional OpenedFor(purpose string) of the fake world's ports, so a real port must never grow one (it would then be
+// told, for nothing). The backend sends the same bytes either way.
+func TestRealPortHasNoOpenedFor(t *testing.T) {
+	type purposer interface{ OpenedFor(purpose string) }
+	if _, ok := any(&tty{}).(purposer); ok {
+		t.Error("the real port has an OpenedFor method")
+	}
+	if _, ok := any(&Fake{}).(purposer); ok {
+		t.Error("serialport.Fake has an OpenedFor method: the world's port wraps it to add one")
+	}
+}

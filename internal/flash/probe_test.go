@@ -63,9 +63,10 @@ func TestProbeProblems(t *testing.T) {
 		{"gone", func() *fakeworld.Board { return fakeworld.HeltecV4(repeater("v1.17.1", "")) },
 			func(w *fakeworld.World, b *fakeworld.Board) { w.Unplug(b) }, flash.Gone, ""},
 		{"ZephCore", func() *fakeworld.Board { return fakeworld.RAK4631(repeater("1.18.2-zephcore", "")) }, nil,
-			flash.NotSettable, "ZephCore: meshflash sets up only MeshCore's own repeater and room-server firmware."},
+			flash.NotSettable, "meshflash sets up only MeshCore's own repeater and room-server firmware."},
+		// Worded to follow the Board's "Running repeater v1.10.0: ", so it doesn't say the version again.
 		{"too old", func() *fakeworld.Board { return fakeworld.HeltecV4(repeater("v1.10.0", "")) }, nil,
-			flash.NotSettable, "It runs v1.10.0; flash v1.11.0 or newer first."},
+			flash.NotSettable, "flash v1.11.0 or newer to set it up here."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := tc.board()
@@ -95,7 +96,8 @@ func TestProbeZephCoreNotSettable(t *testing.T) {
 		"probe":    r.b.Probe(context.Background(), port),
 		"readnode": r.b.ReadNode(context.Background(), port, false),
 	} {
-		if n.Problem != flash.NotSettable || !strings.HasPrefix(n.Reason, "ZephCore: ") || n.HasCurrent {
+		if n.Problem != flash.NotSettable || !strings.HasPrefix(n.Reason, "meshflash sets up only MeshCore's own") ||
+			n.HasCurrent {
 			t.Errorf("%s: %+v", name, n)
 		}
 	}

@@ -99,7 +99,7 @@ func (r *setupRun) run() Outcome {
 	info := r.node.Info
 	if isZephCore(info) {
 		// ZephCore is never set up (4.1), whatever the screens asked: its console isn't MeshCore's.
-		return Outcome{Title: titleSetupStopped, Summary: []string{zephCoreReason}, State: nothingChanged,
+		return Outcome{Title: titleSetupStopped, Summary: []string{zephCoreSetup}, State: nothingChanged,
 			Board: &r.node.Port}
 	}
 	steps, err := nodecli.Plan(s, info)
@@ -118,7 +118,7 @@ func (r *setupRun) run() Outcome {
 
 	if err := r.b.lock(r.ctx); err != nil {
 		dropSteps(steps)
-		return r.cancelled()
+		return r.cancelled(nil)
 	}
 	defer r.b.unlock()
 	cur, ok, err := r.b.findBoard(r.node.Port)
@@ -142,6 +142,10 @@ func (r *setupRun) run() Outcome {
 		return Outcome{Title: titleSetupStopped, Board: r.boardNow(cur), Summary: []string{why},
 			State: nothingChanged, Retry: true}
 	}
+	// Closed however Run ends, a panic in a progress report included: an exclusive port left open would refuse
+	// every later open of this board until meshflash ends. The close after Run is the usual one; a second does no
+	// harm.
+	defer port.Close()
 	err = nodecli.Run(r.ctx, port, r.clock, steps, r.progress)
 	// The node has the passwords now, or never will from this run: drop every copy (4.1, "Passwords").
 	dropSteps(steps)
@@ -149,10 +153,13 @@ func (r *setupRun) run() Outcome {
 	port.Close()
 	if err != nil {
 		var se *nodecli.StepError
+		if errors.As(err, &se) && se.Maybe {
+			r.mayHaveTaken(se.Index)
+		}
 		switch {
 		case stopped(err):
-			return r.cancelled()
-		case errors.As(err, &se):
+			return r.cancelled(se)
+		case se != nil:
 			return Outcome{Title: titleSetupStopped, Board: r.boardNow(cur), Retry: true,
 				Summary: []string{se.Display + ": " + se.Reason}, State: se.State}
 		}
@@ -160,11 +167,11 @@ func (r *setupRun) run() Outcome {
 			Summary: []string{sentence(plain(err))}, State: "meshflash can't tell what the node took."}
 	}
 	r.rebootd = true
-	r.setRisk(RiskSettings) // the reboot applies the radio: nothing waits for a restart any more
+	r.setRisk(RiskRestarted) // the reboot applies the radio: a stop from here skips only the check
 
 	// The board back after its reboot (a native-USB board re-enumerates; one behind a bridge keeps its port), then
 	// the check: the same firmware, the radio that was sent.
-	back := r.start("Back on USB")
+	back := r.start(waitingOnUSB)
 	want := s.Want(info)
 	for attempt := 0; ; attempt++ {
 		path, err := nrfdfu.WaitForPort(r.ctx, r.b.find(cur, func(q usbid.Port) bool {
@@ -173,7 +180,7 @@ func (r *setupRun) run() Outcome {
 		if err != nil {
 			r.failed(back, "not back")
 			if stopped(err) {
-				return r.cancelled()
+				return r.cancelled(nil)
 			}
 			return Outcome{Title: titleSetupStopped, Retry: true, Summary: []string{r.sentSummary(),
 				"It restarted but hasn't come back on USB."},
@@ -187,7 +194,7 @@ func (r *setupRun) run() Outcome {
 		if errors.Is(err, serialport.ErrGone) && attempt == 0 {
 			// The old port was still listed for a moment after the reboot: wait for it to come back once more.
 			r.failed(check, "it went away: waiting again")
-			back = r.start("Back on USB")
+			back = r.start(waitingOnUSB)
 			continue
 		}
 		board := r.boardNow(cur)
@@ -197,8 +204,8 @@ func (r *setupRun) run() Outcome {
 			return Outcome{OK: true, Title: titleSetUp, Board: board, Summary: []string{r.sentSummary(),
 				fmt.Sprintf("It restarted and runs %s on %s.", info.Version.String(), want.Radio.Display())}}
 		case stopped(err):
-			r.failed(check, "stopped")
-			return r.cancelled()
+			r.failed(check, "")
+			return r.cancelled(nil)
 		case errors.Is(err, nodecli.ErrChanged):
 			r.failed(check, "came back different")
 			why := plain(err)
@@ -239,7 +246,11 @@ func (r *setupRun) progress(p nodecli.Progress) {
 		r.mu.Lock()
 		i := r.cur
 		r.mu.Unlock()
-		r.failed(i, clause(p.Note))
+		note := clause(p.Note)
+		if note == "stopped" {
+			note = "" // the step already reads "…: stopped"
+		}
+		r.failed(i, note)
 	case nodecli.Done:
 		r.mu.Lock()
 		i := r.cur
@@ -250,12 +261,15 @@ func (r *setupRun) progress(p nodecli.Progress) {
 		}
 		r.took[p.Index] = true
 		s := r.settings
-		switch r.kinds[p.Index] {
+		switch k := r.kinds[p.Index]; k {
 		case kindRadio:
-			r.sent = &Sent{Radio: s.Radio, TxDBm: s.TxDBm}
-			r.setRisk(RiskRadioSent)
+			r.sentRadio()
 		case kindTx, kindPathHash, kindSet:
-			if r.kinds[p.Index] == kindPathHash && r.sent != nil {
+			switch {
+			case r.sent == nil:
+			case k == kindTx:
+				r.sent.TxDBm = s.TxDBm
+			case k == kindPathHash:
 				r.sent.PathHashBytes = s.PathHashBytes
 			}
 			if r.snapshotRisk() == RiskNone {
@@ -265,14 +279,48 @@ func (r *setupRun) progress(p nodecli.Progress) {
 	}
 }
 
+// sentRadio records that the node took (or may have taken) the radio sent, for config.json (Outcome.Sent): the TX
+// power is the node's own until `set tx`, the next step, is answered too, so a setup that ends between the two never
+// records a TX power the node didn't get.
+func (r *setupRun) sentRadio() {
+	tx := r.settings.TxDBm
+	if r.node.HasCurrent {
+		tx = r.node.Current.TxDBm
+	}
+	r.sent = &Sent{Radio: r.settings.Radio, TxDBm: tx}
+	r.setRisk(RiskRadioSent)
+}
+
+// mayHaveTaken notes the step i that reached the node with no answer back (nodecli.StepError.Maybe): the node may have
+// saved it, so a radio is recorded as sent and stopping is worded as for a radio taken.
+func (r *setupRun) mayHaveTaken(i int) {
+	if i < 0 || i >= len(r.kinds) {
+		return
+	}
+	switch r.kinds[i] {
+	case kindRadio:
+		r.sentRadio()
+	case kindSet, kindTx, kindPathHash:
+		if r.snapshotRisk() == RiskNone {
+			r.setRisk(RiskSettings)
+		}
+	}
+}
+
 func (r *setupRun) snapshotRisk() Risk { return r.j.Snapshot().Risk }
 
 // cancelled is a setup the owner (or a quit) stopped between commands: what was sent and read back, what the node is
-// left with and how to finish, by the step it reached (docs/phase2-design.md 4.2).
-func (r *setupRun) cancelled() Outcome {
+// left with and how to finish, by the step it reached (docs/phase2-design.md 4.2). se is Run's account of the stop,
+// nil when it came outside Run: when the step under way reached the node and its answer never came (StopGrace
+// passed), the node may have saved it, and nodecli's State says so.
+func (r *setupRun) cancelled(se *nodecli.StepError) Outcome {
 	o := Outcome{Stopped: true, Title: titleSetupStopped, Retry: true, Board: r.boardNow(r.node.Port)}
 	risk := r.snapshotRisk()
 	switch {
+	case se != nil && se.Maybe:
+		label, _, _ := strings.Cut(se.Display, ":")
+		o.Summary = []string{r.sentSummary(), label + " was sent just as it stopped, and may have been saved."}
+		o.State = se.State
 	case r.rebootd:
 		o.Summary = []string{r.sentSummary(), "It restarted; meshflash stopped before checking it."}
 		o.State = "Every setting is saved and it restarted with them."

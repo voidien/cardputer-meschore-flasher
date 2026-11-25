@@ -155,7 +155,8 @@ func (b *Backend) Battery() (percent int, ok bool) {
 func (b *Backend) ClockSynced() bool { return b.d.ClockSynced != nil && b.d.ClockSynced() }
 
 // MessengerRadio is the messenger's radio settings (nodecli.ReadMessengerRadio on Deps.MessengerPath), read only,
-// and a note for the setup form when the file was skipped ("" when it was used, or when there is no path).
+// and a note for the setup form when the file was skipped ("" when it was used, or when there is no path). The
+// settings are the zero value, not Found, unless the file was used, so the note never has to say which.
 func (b *Backend) MessengerRadio() (nodecli.MessengerRadio, string) {
 	if b.d.MessengerPath == "" {
 		return nodecli.MessengerRadio{}, ""

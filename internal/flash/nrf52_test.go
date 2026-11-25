@@ -244,8 +244,10 @@ func TestFlashRetryNeedsFreshBootloader(t *testing.T) {
 	start := r.w.Clock().Now()
 	p = r.flash(req)
 	o = p.Outcome
+	// Only a double press seen while the flash waits for it makes the session fresh (a battery board unplugged and
+	// plugged in keeps it), so the Recovery is r, which asks for it again.
 	if o.Title != "Not flashed" || o.State != "Nothing more was sent: its app is still erased." ||
-		o.Recovery != "Press reset twice quickly, then press r." || !o.Retry ||
+		o.Recovery != "Press r; meshflash then asks you to press reset twice quickly." || !o.Retry ||
 		p.Steps[0].Text != "Press the board's reset button twice quickly" || p.Steps[0].State != flash.StepFailed {
 		t.Fatalf("%s\n%s", outcome(o), steps(p))
 	}
@@ -412,8 +414,8 @@ func TestFlashMayHaveWorkedNeverBack(t *testing.T) {
 	req := rakRepeater(t, r, rak)
 	r.save(req)
 	rak.NextBootloader("lose-ack:" + stopFrame(t, r, req))
-	// STOP goes out about 5.6 s in; its answer is waited for 5 s, and the app would be back a second after that.
-	r.w.At(11*time.Second, func() { r.w.Unplug(rak) })
+	// STOP goes out about 4.5 s in; its answer is waited for 5 s, and the app would be back a second after that.
+	r.w.At(10*time.Second, func() { r.w.Unplug(rak) })
 	p := r.flash(req)
 	o := p.Outcome
 	if o.Title != "Flashing stopped" || o.State != "Most likely written, but the board didn't come back." ||
@@ -521,9 +523,12 @@ func TestFlashNRF52UnpluggedWhileWaiting(t *testing.T) {
 		at           time.Duration
 		title, state string
 	}{
-		{"waiting for the bootloader", 2 * time.Second, "Not flashed", "Nothing was sent: it still has its old firmware."},
-		{"erasing", 3 * time.Second, "Flashing stopped", "Its app is erased."},
-		{"after STOP", 6 * time.Second, "Flashing stopped", "Most likely written, but the board didn't come back."},
+		// The touch's wait looks at the clock every 250 ms, so the board leaves at the DTR drop and is back as its
+		// bootloader about 1.35 s in: unplugged mid-reboot, it never comes back.
+		{"waiting for the bootloader", time.Second, "Not flashed", "Nothing was sent: it still has its old firmware."},
+		{"erasing", 2 * time.Second, "Flashing stopped", "Its app is erased."},
+		// STOP about 4.5 s in, the app back a second later.
+		{"after STOP", 5 * time.Second, "Flashing stopped", "Most likely written, but the board didn't come back."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rak := fakeworld.RAK4631(repeater("v1.17.1", ""))

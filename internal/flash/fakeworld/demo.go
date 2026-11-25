@@ -23,9 +23,13 @@ const demoAppSize = 360 << 10
 // demoStep caps one real sleep, so a long virtual wait (an nRF52's 20 s confirm) never freezes the demo for long.
 const demoStep = 2 * time.Second
 
+// demoFetchRate is how fast the demo's sites answer, in bytes a second of real time: a file of 361 KB in about 1.5 s
+// and the catalog's 1.5 MB in about 6 s, as over the Zero's Wi-Fi, so the Download and Update catalog screens show.
+const demoFetchRate = 256 << 10
+
 func demo(cacheDir, version string, log io.Writer) (flash.Deps, error) {
 	w := New()
-	w.appSize = demoAppSize
+	w.appSize, w.fetchRate = demoAppSize, demoFetchRate
 	w.Plug(HeltecV4(Firmware{Role: nodecli.RoleRepeater, Version: "v1.17.1", Name: "Hilltop 2"}))
 	w.Plug(RAK4631(Firmware{Role: "companion"}))
 	d, err := w.Deps(cacheDir, version, false)

@@ -100,14 +100,18 @@ const (
 	// press its reset button (or unplug it if it has no battery) and press r.
 	Stuck
 	// NotSettable: a console answered but setup can't configure it (another role, firmware before v1.11.0, or a
-	// ZephCore build, whose `ver` names it: setup knows only MeshCore's own firmware); Reason says why
-	// (nodecli.Info.Settable, or "ZephCore: meshflash sets up only MeshCore's own repeater and room-server firmware.").
+	// ZephCore build, whose `ver` names it: setup knows only MeshCore's own firmware); Reason says why, worded to
+	// follow "Running repeater v1.10.0: " ("flash v1.11.0 or newer to set it up here.", "meshflash sets up only
+	// repeater and room-server firmware.", or for ZephCore "meshflash sets up only MeshCore's own repeater and
+	// room-server firmware.").
 	NotSettable
 	// InBootloader: an nRF52 showing its bootloader. It is never opened by a probe. Reason is "" when the port is
 	// positively the bootloader (Port.InBootloader) in a fresh session, ready to flash; otherwise it says what to do
 	// first: "Its last flash stopped part-way: meshflash asks you to press reset twice quickly when you flash it."
-	// for a session that already had START (docs/phase2-design.md 4.4), or "Looks like its bootloader, but meshflash
-	// can't confirm it: press reset twice quickly."
+	// for a session that already had START (docs/phase2-design.md 4.4); "It was already in its bootloader when
+	// meshflash started: meshflash asks you to press reset twice quickly when you flash it." for one listed at the
+	// first scan, which may hold a session a stopped flash left (owner question 18); or "Looks like its bootloader,
+	// but meshflash can't confirm it: press reset twice quickly." The screens show Reason as it is.
 	InBootloader
 	// NoPermission: the port can't be opened (serialport.ErrPermission): not in the dialout group yet (SPEC.md 9.3).
 	NoPermission
@@ -221,9 +225,13 @@ type Step struct {
 	Took    time.Duration
 	// Expect is how long the step is expected to take when nothing shows progress (an nRF52 erase), or 0.
 	Expect time.Duration
-	// Note is a detail: "attempt 2 of 4", "No answer: sending again (2 of 3)", "Stopping once the erase ends (about
-	// 8 s)", why it was skipped or failed. Never a password.
+	// Note is a detail: "attempt 2 of 4", "No answer: sending again (2 of 3)", "Stopping once the erase ends", why
+	// it was skipped or failed. Never a password.
 	Note string
+	// From is the URL a download step's file is being fetched from: the catalog's, then its GitHub fallback once the
+	// flasher site didn't give it (catalog.Client.DownloadFrom); "" for every other step. The Download screen says
+	// where the file comes from by it, never by a Note's words.
+	From string
 }
 
 // Risk is what stopping a Job now would leave the board with, so the screens' "Stop now?" says what is true.
@@ -243,6 +251,13 @@ const (
 	RiskSettings
 	// RiskRadioSent: a setup's "set radio" is saved on the node: it switches to the new radio when it restarts.
 	RiskRadioSent
+	// RiskBootloader: a flash has sent the board into its bootloader (the 1200-baud touch, an ESP32 reset into its
+	// ROM), or found it there, but written nothing: stopping leaves its old firmware, in the bootloader until its
+	// reset button is pressed.
+	RiskBootloader
+	// RiskRestarted: a setup's reboot is sent: the node restarted with its new settings, and stopping skips only the
+	// check after.
+	RiskRestarted
 )
 
 // Progress is a whole picture of a Job at one moment. It is also the tea.Msg the screens receive for it.
@@ -298,17 +313,22 @@ type Outcome struct {
 	Board *Port
 	// Entries are the files a download saved (JobDownload).
 	Entries []catalog.Entry
-	// Sent is the radio part a setup sent, once the node took its "set radio" step, for config.json (JobSetup); nil
-	// when it didn't get that far.
+	// Sent is the radio part a setup sent, once the node took its "set radio" step (or may have: it reached the node
+	// and no answer came), for config.json (JobSetup); nil when it didn't get that far.
 	Sent *Sent
 	// Log is one line for screen.log about how it ended ("" for nothing), by the rules of Deps.Logf: which step,
-	// why, in nodecli's or esp's and nrfdfu's words; never a raw reply, a command or a password.
+	// why, in nodecli's or esp's and nrfdfu's words; never a raw reply, a command or a password. The backend is its
+	// one writer: it sets Log only for a Job that didn't end OK (never for a download the owner stopped) and gives the
+	// same line to Deps.Logf just before Finish, whether or not a screen is watching (a crash, a quit). The screens
+	// and internal/app never write it again (one line per failure, never twice).
 	Log string
 }
 
 // Sent is the radio part of a setup the node took.
 type Sent struct {
-	Radio         nodecli.Radio
+	Radio nodecli.Radio
+	// TxDBm is the TX power sent once its `set tx` was answered; until then the node's own, as read when the form
+	// opened (a setup that ends between `set radio` and `set tx` never records a TX power the node didn't get).
 	TxDBm         int
 	PathHashBytes int // 0 when none was sent (before v1.14.0, or left as it was)
 }

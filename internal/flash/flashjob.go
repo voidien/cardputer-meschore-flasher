@@ -107,6 +107,14 @@ func (r *flashRun) stoppedUntouched() Outcome {
 		State: nothingSent, Retry: true}
 }
 
+// stoppedInBootloader is a stop once the board was sent into its bootloader (the 1200-baud touch, an ESP32's reset
+// into its ROM) and before anything was written: its old firmware is there, but it waits in its bootloader, off the
+// mesh, until its reset button is pressed (docs/meshcore-flashing.md 10.2).
+func (r *flashRun) stoppedInBootloader(was Port, summary, state string) Outcome {
+	return Outcome{Stopped: true, Title: titleStopped, Board: r.boardNow(was), Summary: []string{summary},
+		State: state, Recovery: pressResetOnce, Retry: true}
+}
+
 // logLine is the one screen.log line for a flash that didn't work: where it stopped and why, in the steps' and the
 // outcome's own words (they never hold a password).
 func (r *flashRun) logLine(o Outcome) string {
@@ -212,8 +220,9 @@ func (r *flashRun) cancelNote() {
 	if ends.IsZero() || i < 0 {
 		return
 	}
-	if left := ends.Sub(r.clock.Now()); left > 0 {
-		r.note(i, fmt.Sprintf("Stopping once the erase ends (about %d s)", secs(left)))
+	if ends.After(r.clock.Now()) {
+		// No count of seconds: it would be stale at once, and the step's own clock shows how long the erase runs.
+		r.note(i, stoppingErase)
 	}
 }
 

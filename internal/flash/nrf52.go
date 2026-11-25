@@ -38,6 +38,9 @@ func (r *flashRun) nrf52(cur Port, c checked) (o Outcome) {
 	if err != nil {
 		return r.dfuOpenFailed(boot, err)
 	}
+	// Closed however the session ends, a panic in a progress report included (an exclusive port left open refuses
+	// every later open of the board); the close after Flash is the usual one, and a second does no harm.
+	defer sp.Close()
 	r.reopened[boot.Name] = true
 	dp := &dfuPort{Port: sp, r: r, board: boot}
 	ferr := nrfdfu.Flash(r.ctx, dp, r.clock, c.pkg, r.dfuProgress(len(c.pkg.Bin)))
@@ -56,7 +59,7 @@ func (r *flashRun) nrf52(cur Port, c checked) (o Outcome) {
 	r.setRisk(RiskWritten)
 
 	// Back on USB: the bootloader starts the app once it took the image.
-	back := r.start("Back on USB")
+	back := r.start(waitingOnUSB)
 	appPath, err := nrfdfu.WaitForPort(r.ctx, r.b.find(was, func(q usbid.Port) bool {
 		return q.Interface != usbid.InterfaceNRFBootloader && usbid.Classify(q) == usbid.NRFApp
 	}), r.clock, nrfdfu.AppWait)
@@ -80,7 +83,7 @@ func (r *flashRun) nrf52(cur Port, c checked) (o Outcome) {
 	}
 
 	// A repeater or room server: ask it its version, since the bootloader never says whether the image was good.
-	vs := r.start("Running " + r.req.Version.Name)
+	vs := r.start("Asking its version")
 	info, err := r.askVersion(appPath)
 	r.reopened[app.Name] = true
 	switch {
@@ -116,6 +119,7 @@ func (r *flashRun) bootloader(cur Port) (string, Outcome, bool) {
 		return r.touch(cur)
 	case cur.InBootloader() && !stale:
 		// Seen to appear in this run (owner question 18): a fresh session, no touch needed.
+		r.setRisk(RiskBootloader)
 		r.done(r.start("Already in its bootloader"), "")
 		return cur.Dev, Outcome{}, true
 	}
@@ -126,9 +130,19 @@ func (r *flashRun) bootloader(cur Port) (string, Outcome, bool) {
 // the same board (its USB serial number), never found by tty name.
 func (r *flashRun) touch(cur Port) (string, Outcome, bool) {
 	i := r.start("Into the bootloader (1200-baud touch)")
-	err := nrfdfu.Touch(r.b.touchOpener, cur.Dev, r.clock)
+	err := nrfdfu.TouchContext(r.ctx, r.b.touchOpener, cur.Dev, r.clock)
 	if err != nil {
 		switch {
+		case errors.Is(err, nrfdfu.ErrTouchStopped):
+			// Stopped before DTR dropped: the line went back to 115200 first, so the board was never touched.
+			r.failed(i, "")
+			return "", r.stoppedUntouched(), false
+		case stopped(err):
+			// Stopped once the touch was made: the board resets into its bootloader all the same.
+			r.touched = cur.Name
+			r.setRisk(RiskBootloader)
+			r.failed(i, "")
+			return "", r.stoppedInBootloader(cur, "Stopped just after the 1200-baud touch.", touchedState), false
 		case errors.Is(err, serialport.ErrBusy), errors.Is(err, serialport.ErrPermission),
 			errors.Is(err, serialport.ErrGone):
 			// The port didn't open, so nothing reached the board.
@@ -144,13 +158,15 @@ func (r *flashRun) touch(cur Port) (string, Outcome, bool) {
 		r.b.logf("flash: the 1200-baud touch on %s: %v", cur.Name, plain(err))
 	}
 	r.touched = cur.Name // the port was opened at 1200 baud: from here the flash ends setting it back
+	r.setRisk(RiskBootloader)
 	path, err := nrfdfu.WaitForPort(r.ctx, r.b.find(cur, func(q usbid.Port) bool {
 		return q.Interface == usbid.InterfaceNRFBootloader
 	}), r.clock, nrfdfu.BootloaderWait)
 	switch {
 	case err != nil && stopped(err):
-		r.failed(i, "stopped")
-		return "", r.stoppedUntouched(), false
+		r.failed(i, "")
+		return "", r.stoppedInBootloader(cur, "Stopped while waiting for its bootloader after the 1200-baud touch.",
+			touchedState), false
 	case err != nil:
 		r.failed(i, "no bootloader in "+fmt.Sprint(secs(nrfdfu.BootloaderWait))+" s")
 		board := r.boardNow(cur)
@@ -175,6 +191,14 @@ func (r *flashRun) freshBootloader(cur Port, rec staleDFU, stale bool) (string, 
 	i := r.start(pressResetTwiceStep, func(s *Step) {
 		s.Note = fmt.Sprintf("waiting up to %d s for its bootloader to restart", secs(FreshBootloaderWait))
 	})
+	// What stopping here leaves: an earlier START erased the app; otherwise it is in its bootloader with whatever it
+	// had.
+	erased := stale && rec.why == staleStarted
+	if erased {
+		r.setRisk(RiskErased)
+	} else {
+		r.setRisk(RiskBootloader)
+	}
 	start := r.clock.Now()
 	gone := false
 	for {
@@ -197,14 +221,22 @@ func (r *flashRun) freshBootloader(cur Port, rec staleDFU, stale bool) (string, 
 				gone = true
 				r.note(i, "it went away: waiting for its bootloader to come back")
 			case gone && fresh != "":
-				// The step keeps its words: what it asked for, now ✓ (the screens and their tests read it so).
+				// The step keeps its words: what it asked for, now ✓ (the screens and their tests read it so). The
+				// session is a new one: nothing stale is left of the record.
+				r.b.clearStale(cur)
 				r.done(i, "")
 				return fresh, Outcome{}, true
 			}
 		}
 		if err := r.ctx.Err(); err != nil {
-			r.failed(i, "stopped")
-			return "", r.stoppedUntouched(), false
+			r.failed(i, "")
+			o := Outcome{Stopped: true, Title: titleStopped, Board: r.boardNow(cur), Retry: true,
+				Summary: []string{"Stopped while waiting for the double press of reset, before anything was sent."},
+				State:   "Nothing was sent: it is still in its bootloader.", Recovery: pressResetOnce}
+			if erased {
+				o.State, o.Recovery = "Nothing more was sent: its app is still erased.", askDoublePress
+			}
+			return "", o, false
 		}
 		if r.clock.Now().Sub(start) >= FreshBootloaderWait {
 			break
@@ -212,10 +244,11 @@ func (r *flashRun) freshBootloader(cur Port, rec staleDFU, stale bool) (string, 
 		r.clock.Sleep(pollFresh)
 	}
 	r.failed(i, fmt.Sprintf("no fresh bootloader in %d s", secs(FreshBootloaderWait)))
-	o := Outcome{Title: titleNotFlashed, Board: r.boardNow(cur), Retry: true, Recovery: pressTwice,
+	// Only a double press seen during this wait makes the session fresh (scan.go's note), so r asks for it again.
+	o := Outcome{Title: titleNotFlashed, Board: r.boardNow(cur), Retry: true, Recovery: askDoublePress,
 		Summary: []string{"meshflash didn't see the board's bootloader go and come back, so it sent nothing."}}
 	switch {
-	case stale && rec.why == staleStarted:
+	case erased:
 		o.State = "Nothing more was sent: its app is still erased."
 	default:
 		o.State = "Nothing was sent: it is still in its bootloader."

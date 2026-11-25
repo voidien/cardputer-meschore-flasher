@@ -363,6 +363,10 @@ func TestTransitions(t *testing.T) {
 		if mr, note := nodecli.ReadMessengerRadio(d.MessengerPath); note != "" || mr.TxDBm != 20 {
 			t.Errorf("messenger %+v %q", mr, note)
 		}
+		// Once a Deps is made, SetMessenger is refused: that Deps would never read the new file.
+		if err := w.SetMessenger(t.TempDir(), nodecli.MessengerRadio{Radio: nodecli.DefaultRadio}); err == nil {
+			t.Error("SetMessenger after Deps was taken")
+		}
 		w.SetDialout(false)
 		if ok, hint := d.Dialout(); ok || hint != usbid.DialoutHint {
 			t.Errorf("dialout %v %q", ok, hint)

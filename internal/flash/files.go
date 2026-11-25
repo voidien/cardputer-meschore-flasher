@@ -145,10 +145,12 @@ func (b *Backend) runDownload(ctx context.Context, j *Job, files []catalog.File)
 		j.Set(func(p *Progress) {
 			p.Steps = append(p.Steps, Step{Text: name, State: StepNow, Total: -1, Started: start})
 		})
-		e, err := b.d.Catalog.Download(ctx, f, func(done, total int64) {
+		e, err := b.d.Catalog.DownloadFrom(ctx, f, func(done, total int64) {
 			j.Set(func(p *Progress) {
 				p.Steps[i].Done, p.Steps[i].Total = done, total
 			})
+		}, func(url string) {
+			j.Set(func(p *Progress) { p.Steps[i].From = url })
 		})
 		took := b.d.Clock.Now().Sub(start)
 		if err != nil {

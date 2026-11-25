@@ -72,12 +72,16 @@ type World struct {
 	serveAs  map[string]Firmware
 	serveSD  map[string]uint16
 	appSize  int // the made-up apps' size: 0 for appSize (tests), a real image's in the demo
+	// fetchRate is how fast the in-memory sites answer in real time, in bytes a second: 0 (tests) at once, the
+	// demo's Wi-Fi-like pace so its Download and Update catalog screens can be seen.
+	fetchRate int
 
 	battery     int // percent; negative: no battery
 	unreadable  bool
 	clockSynced bool
 	dialout     bool
 	messenger   string
+	depsMade    bool // a Deps has been made: SetMessenger is refused from then on
 }
 
 // event is an At: f runs once the clock reaches due.
@@ -99,7 +103,7 @@ func New() *World {
 // Deps are a flash.Backend's dependencies over this world, with the catalog client's files under cacheDir and the
 // flasher sites served in memory (no socket at all). With withCatalog the catalog is saved there first, as a u would
 // have saved it; those requests are not in Requests. MessengerPath is "" (no messenger file) unless SetMessenger
-// was called.
+// was called, which must come first (it is refused once a Deps is made).
 func (w *World) Deps(cacheDir, version string, withCatalog bool) (flash.Deps, error) {
 	client := catalog.NewClient(cacheDir, version, catalog.Options{Sites: Sites, Clock: w.clock,
 		HTTP: &http.Client{Transport: memTransport{w}}})
@@ -126,6 +130,7 @@ func (w *World) deps(client *catalog.Client, cacheDir, version string, withCatal
 	}
 	w.mu.Lock()
 	messenger := w.messenger
+	w.depsMade = true
 	w.mu.Unlock()
 	return flash.Deps{
 		Open:          w.open,
@@ -296,9 +301,16 @@ func (w *World) dialoutStatus() (bool, string) {
 	return false, usbid.DialoutHint
 }
 
-// SetMessenger writes a messenger settings file (SPEC.md 8.4) into dir and makes Deps point at it.
+// SetMessenger writes a messenger settings file (SPEC.md 8.4) into dir and makes Deps point at it. Call it before
+// Deps (before newWorldDriver, in internal/ui's tests): a Deps keeps the path it was given (Deps.MessengerPath is a
+// string), so a call after one has been made is refused with an error rather than silently missed.
 func (w *World) SetMessenger(dir string, r nodecli.MessengerRadio) error {
-	// Deps made before the call keep the path they were given (Deps.MessengerPath is a string), so call it first.
+	w.mu.Lock()
+	late := w.depsMade
+	w.mu.Unlock()
+	if late {
+		return errors.New("fakeworld: SetMessenger after Deps: the Deps already made would never read it; call it first")
+	}
 	radio := map[string]any{"freq_mhz": r.Radio.FreqMHz, "bw_khz": r.Radio.BWkHz, "sf": r.Radio.SF, "cr": r.Radio.CR}
 	if r.HasTx {
 		radio["tx_dbm"] = r.TxDBm
@@ -624,6 +636,27 @@ func (b *Board) UnplugAfterCommands(n int) {
 // methods.
 func (b *Board) AfterCommands(n int, f func()) {
 	b.addHook(n, false, f)
+}
+
+// PauseAfter holds a setup once the board's console has handled a command beginning with prefix ("set radio "):
+// at the virtual clock's next move after that (the backend's gap before its next command, its reply already read),
+// the backend's goroutine waits until resume is called. paused is closed once it waits there. So a test acts between
+// two commands of a setup (Ctrl+C after set radio was answered) on an event, with no polling. Call resume once the
+// test has acted; it may be called more than once, and before the pause (which then doesn't wait).
+func (b *Board) PauseAfter(prefix string) (paused <-chan struct{}, resume func()) {
+	held, resumed := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	resume = func() { once.Do(func() { close(resumed) }) }
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.hooks = append(b.hooks, cmdHook{match: prefix, f: func() {
+		// On the goroutine sending the command, before its reply reaches it: wait for the clock's next move.
+		b.w.At(0, func() {
+			close(held)
+			<-resumed
+		})
+	}})
+	return held, resume
 }
 
 // IgnoreTouch makes the nRF52's app ignore the 1200-baud touch (as one that something else holds DTR high for):

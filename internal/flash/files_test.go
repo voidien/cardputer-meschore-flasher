@@ -98,7 +98,7 @@ func TestDownload(t *testing.T) {
 						o := p.Outcome
 						if !o.OK || o.Title != "Downloaded" || len(o.Entries) != 1 || o.Entries[0].Name != f.Base() ||
 							p.Steps[0].Text != f.Base() || p.Steps[0].State != flash.StepDone ||
-							p.Steps[0].Done != p.Steps[0].Total || o.Entries[0].URL != f.URL {
+							p.Steps[0].Done != p.Steps[0].Total || o.Entries[0].URL != f.URL || p.Steps[0].From != f.URL {
 							t.Fatalf("%s\n%s", outcome(o), steps(p))
 						}
 						break
@@ -134,6 +134,11 @@ func TestDownload(t *testing.T) {
 				p := wait(t, r.b.Download(context.Background(), []catalog.File{f}))
 				if o := p.Outcome; !o.OK || o.Entries[0].URL != f.Fallback {
 					t.Fatalf("%s\n%s", outcome(o), steps(p))
+				}
+				// The step says it came from GitHub by its From, which the Download screen reads (not a Note).
+				if p.Steps[0].From != f.Fallback || p.Steps[0].Note != "" {
+					t.Errorf("the step's From %q, Note %q; want the fallback %q", p.Steps[0].From, p.Steps[0].Note,
+						f.Fallback)
 				}
 				if got := r.w.Requests(); len(got) != 2 || !strings.HasPrefix(got[1], "/gh/meshcore-dev/MeshCore/") {
 					t.Errorf("requests %q", got)

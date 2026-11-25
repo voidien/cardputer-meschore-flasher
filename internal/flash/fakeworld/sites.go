@@ -8,10 +8,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 )
 
 // The flasher sites, as internal/catalog's own test server lays them out (catalog/server_test.go): MeshCore's under
@@ -143,8 +145,38 @@ func (t memTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	t.w.serveHTTP(rec, r)
 	resp := rec.Result()
 	resp.Request = r
+	// The world's own requests (the demo saving its catalog at start: quietKey) aren't the owner's Wi-Fi: never paced.
+	if rate := t.w.fetchRate; rate > 0 && r.Context().Value(quietKey{}) == nil {
+		resp.Body = &pacedBody{r: resp.Body, rate: rate, ctx: r.Context()}
+	}
 	return resp, nil
 }
+
+// pacedBody hands out a response body at rate bytes a second of real time: the demo's (World.fetchRate), so a
+// download shows on the Download screen as it would over Wi-Fi rather than ending before it can be seen. Tests never
+// pace: everything there is virtual time.
+type pacedBody struct {
+	r    io.ReadCloser
+	rate int
+	ctx  context.Context
+}
+
+func (b *pacedBody) Read(p []byte) (int, error) {
+	if len(p) > 8<<10 {
+		p = p[:8<<10]
+	}
+	n, err := b.r.Read(p)
+	if n > 0 {
+		select {
+		case <-time.After(time.Duration(n) * time.Second / time.Duration(b.rate)):
+		case <-b.ctx.Done():
+			return n, b.ctx.Err()
+		}
+	}
+	return n, err
+}
+
+func (b *pacedBody) Close() error { return b.r.Close() }
 
 // offlineTransport is DepsOver's: SetOffline fails a request before it leaves, as no network does; otherwise it goes
 // to the httptest server.

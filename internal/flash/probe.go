@@ -97,7 +97,7 @@ func classify(p Port, info nodecli.Info) Node {
 	case isZephCore(info):
 		n.Problem, n.Reason = NotSettable, zephCoreReason
 	case info.Settable() != nil:
-		n.Problem, n.Reason = NotSettable, settableReason(info.Settable())
+		n.Problem, n.Reason = NotSettable, settableReason(info)
 	}
 	return n
 }

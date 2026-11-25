@@ -17,9 +17,6 @@ const (
 // staleDFU is a bootloader session that may already have had START: DFU is never started in it.
 type staleDFU struct {
 	why int
-	// gone says its bootloader's port has been seen gone since the record: when it is seen again, the owner has
-	// pressed reset twice and the session is fresh.
-	gone bool
 }
 
 // scanPorts is Scan: the ports as the screens see them, and whether ports can be opened at all.
@@ -53,7 +50,10 @@ func (b *Backend) scan() ([]usbid.Port, error) {
 }
 
 // note updates the stale sessions from one scan (4.4): a bootloader at the first scan is stale; a record is cleared
-// when the board's app is on USB again, or when its bootloader's port is seen gone and then back.
+// when the board's app is on USB again. A bootloader port seen gone and then back clears nothing here: a board on its
+// battery that was unplugged and plugged in again keeps its bootloader session (OTAFIX has no exit on losing USB
+// power, and no inactivity timer: docs/meshcore-flashing.md 5.6), so only a double press of reset that the flash
+// itself asked for and saw (freshBootloader, clearStale) makes the session fresh.
 func (b *Backend) note(ports []usbid.Port) {
 	apps, boots := map[string]bool{}, map[string]bool{}
 	for _, p := range ports {
@@ -76,17 +76,19 @@ func (b *Backend) note(ports []usbid.Port) {
 		}
 		return
 	}
-	for key, rec := range b.stale {
-		switch {
-		case apps[key]:
+	for key := range b.stale {
+		if apps[key] {
 			delete(b.stale, key)
-		case !boots[key]:
-			rec.gone = true
-			b.stale[key] = rec
-		case rec.gone:
-			delete(b.stale, key) // gone and back: a fresh session
 		}
 	}
+}
+
+// clearStale forgets p's stale session: freshBootloader saw its bootloader go and come back while it asked for the
+// double press, so the session is a new one.
+func (b *Backend) clearStale(p Port) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.stale, p.DraftKey())
 }
 
 // ensureScanned makes the first scan if none has been made, so a bootloader already on USB when the backend started
@@ -139,7 +141,10 @@ const (
 )
 
 // purposer is a port that wants to know what it was opened for. Only the fake world's are (they hold a port the
-// backend says nothing about to a probe's rules: internal/flash/fakeworld); a real port is told nothing.
+// backend says nothing about to a probe's rules: internal/flash/fakeworld); a real port has no such method
+// (serialport's TestRealPortHasNoOpenedFor) and is told nothing. Being told changes nothing the backend does: the
+// same bytes go to the board either way, so the world's checks hold for a real port too. serialport.Opener carries
+// no purpose because only a test needs one.
 type purposer interface{ OpenedFor(purpose string) }
 
 // open opens a tty at baud, exclusively (SPEC.md 6.1), telling a port that asks what it is for ("" for a probe).
@@ -167,8 +172,13 @@ func (b *Backend) touchOpener(path string, o serialport.Options) (serialport.Por
 	return p, nil
 }
 
+// SameBoard says a and b are the same board, by the backend's rule (sameBoard): the screens' rule for the status
+// mark and for "the board isn't plugged in" (internal/ui's listed), so the two never disagree.
+func SameBoard(a, b Port) bool { return sameBoard(a.Port, b.Port) }
+
 // sameBoard is usbid.SameBoard, and for a port it can't follow (no useful serial, not a bridge) the same tty with
-// the same identity in the same socket: the screens' rule for the status mark (internal/ui's listed).
+// the same identity in the same socket: the screens' rule for the status mark (internal/ui's listed, through
+// SameBoard). A port with a useful serial is never the same as one with another serial, whatever its tty.
 func sameBoard(a, b usbid.Port) bool {
 	if usbid.SameBoard(a, b) {
 		return true
