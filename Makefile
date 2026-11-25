@@ -8,12 +8,22 @@
 #   make demo             the demo build → dist/meshflash-demo: the screens over a fake world, for a PC
 #   make run-small        the demo build in a 45×10 terminal on the PC (the CLI app's grid)
 #   make icon             redraw packaging/meshflash_100.png (needs Pillow)
+# Phase 3, on the device (docs/phase3.md): the owner runs these from the PC; each reaches HOST with ssh in BatchMode,
+# needs no sudo, prints a summary to paste and keeps its output under dist/phase3/. make test runs none of them.
+#   make device-check     read-only facts from the PC and the device, to paste first
+#   make device-run       the deployed meshflash on the device, drawing into a file with keys from a FIFO (S30)
+#   make device-shot      a picture of the real LCD and its text (reads /dev/fb0 only)
+#   make device-mem       VmHWM and VmRSS of a running meshflash (S9), just before quitting it
+#   make device-logs      screen.log, config.json, drafts.json and keyrate.txt from the device
+#   make device-tools     copies keyrate.py to ~/meshflash-check/ on the device, for the CLI app
 
 GO   ?= go
+PYTHON ?= python3
 export GOTOOLCHAIN ?= go1.25.4
 HOST ?= CardPuter
 
 .PHONY: test reference build-arm64 deploy install-desktop demo run-small icon
+.PHONY: device-check device-run device-shot device-mem device-logs device-tools
 
 # The last step: the release binary for the device links no fake world (internal/flash/fakeworld, the demo build's),
 # so fake boards can never show on the device, and no test code (package testing, net/http/httptest). A go list that
@@ -69,3 +79,25 @@ run-small:
 
 icon:
 	python3 packaging/make_icon.py
+
+# Phase 3 (docs/phase3.md, scripts/device/): thin calls of the scripts, which say what each reads and writes. The
+# run needs dist/meshflash to compare with the deployed copy (it refuses one that differs: make deploy).
+device-check:
+	$(PYTHON) scripts/device/check.py --host $(HOST)
+
+device-run: build-arm64
+	$(PYTHON) scripts/device/screendrive.py --host $(HOST)
+
+device-shot:
+	$(PYTHON) scripts/device/shot.py --host $(HOST)
+
+device-mem:
+	$(PYTHON) scripts/device/mem.py --host $(HOST)
+
+device-logs:
+	$(PYTHON) scripts/device/logs.py --host $(HOST)
+
+# keyrate.py runs in the CLI app on the device, not over ssh: it measures how the CLI app sends a held key. The
+# copy goes over the scripts' own ssh (its timeouts, its plain-words failures) and is checked by its sha256.
+device-tools:
+	$(PYTHON) scripts/device/tools.py --host $(HOST)
