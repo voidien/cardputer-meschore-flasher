@@ -3,3 +3,5 @@
 /reference/**/node_modules/
 *.test
 *.out
+/meshflash
+/meshflash-demo
