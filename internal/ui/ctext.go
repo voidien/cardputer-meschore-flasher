@@ -34,13 +34,26 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // roleWords names a node's role as it said it ("room_server" is "room server").
 func roleWords(role string) string { return strings.ReplaceAll(role, "_", " ") }
 
-// running is what a node that answered runs: "repeater v1.17.1", or the version alone when it gave no role.
+// running is what a node that answered runs: "repeater v1.17.1", or the version alone when it gave no role;
+// "ZephCore repeater v1.18.2" when its ver names ZephCore (as the backend tells it: flash's isZephCore).
 func running(info nodecli.Info) string {
 	v := info.Version.String()
-	if info.Role == "" {
-		return v
+	if info.Role != "" {
+		v = roleWords(info.Role) + " " + v
 	}
-	return roleWords(info.Role) + " " + v
+	if strings.Contains(strings.ToLower(info.Version.Raw), "zeph") {
+		v = "ZephCore " + v
+	}
+	return v
+}
+
+// notSettable is the sentence for a node that answered but can't be set up: "Running repeater v1.10.0: flash
+// v1.11.0 or newer to set it up here." (flash.Node.Reason is worded to follow it).
+func notSettable(n flash.Node) string {
+	if n.Reason == "" {
+		return "Running " + running(n.Info) + "."
+	}
+	return "Running " + running(n.Info) + ": " + sentence(n.Reason)
 }
 
 // nodeSays is the Board's sentence about a probe's answer (design 9.1), "" when there is nothing to say (a silent
@@ -56,10 +69,7 @@ func nodeSays(n flash.Node) string {
 	case flash.Stuck:
 		return "It echoes but doesn't answer: press its reset button (or unplug it if it has no battery) and press r."
 	case flash.NotSettable:
-		if n.Reason == "" {
-			return "Running " + running(n.Info) + "."
-		}
-		return "Running " + running(n.Info) + ": " + sentence(n.Reason)
+		return notSettable(n)
 	case flash.InBootloader:
 		if n.Reason == "" {
 			return "In its bootloader, ready to flash."
@@ -91,6 +101,8 @@ func stopWords(r flash.Risk, quit bool) string {
 		s = "Stop now? The board will have no working firmware until it's flashed again"
 	case flash.RiskWritten:
 		s = "Stop now? It's already written; meshflash just won't check it"
+	case flash.RiskBootloader:
+		s = "Stop now? Nothing is written yet; the board stays in its bootloader until reset"
 	default:
 		s = "Stop now? Nothing has been written yet: the board keeps its firmware"
 	}

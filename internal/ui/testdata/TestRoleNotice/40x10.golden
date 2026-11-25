@@ -1,10 +1,10 @@
 Seeed Studio Wio Tracker L1 Pro        ●
-MeshCore
+WARNING: We strongly recommend
+installing OTAFIX bootloader by @oltaco
+if you plan to update firmware via OTA
+bluetooth, as factory bootloader does
+not support it!
   Companion · Bluetooth
   Companion · USB
 ▸ Repeater
-  Room Server
-  KISS Radio Modem
-ZephCore · third-party port
-  Companion
 j/k move  enter pick  esc back  ? help

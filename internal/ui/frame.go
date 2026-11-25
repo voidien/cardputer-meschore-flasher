@@ -41,9 +41,17 @@ const (
 	// follows another that fast. A held key is taken to repeat every 33 ms after 250 ms, Linux's default, on the LCD's
 	// keyboard and in the CLI app's terminal alike (UNVERIFIED: Phase 3 measures both, docs/phase2-design.md 18.9).
 	heldYGap = 500 * time.Millisecond
-	// scrollStep is how many lines j and k scroll text: Help, Notes, Result. Two, as Loom's (the owner found one line
-	// slow going there; owner question 15 confirms it for meshflash).
+	// scrollStep is how many lines j and k scroll text: Help, Notes. Two, as Loom's (the owner found one line slow
+	// going there; owner question 15 confirms it for meshflash). Result and Setup's end scroll a paragraph at a time
+	// (endview.go).
 	scrollStep = 2
+	// escRepeatGap: in a terminal (Options.TerminalKeys), which sends a held key again and again and never its
+	// release, an Esc less than this after the previous Esc, no other key between, is a held Esc repeating, and is
+	// dropped, as a held Tab's repeats are (lock.go). Else holding Esc for the launcher's quit (3 s) would walk back
+	// through every screen to the Board and quit in a third of a second, losing a text box's text that its first
+	// tap cancelled (SPEC 8: kept 3.5 s for the SIGTERM), and answer a "Stop now?" its first tap opened. So two Escs
+	// pressed less than 0.5 s apart act as one there. On the LCD internal/screen sends Esc only on its press.
+	escRepeatGap = 500 * time.Millisecond
 )
 
 // The frame's own messages.
@@ -160,6 +168,9 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	case lockTabHeld:
 		return m.lockNow()
 	}
+	if m.escRepeat(msg, now) {
+		return nil
+	}
 	if msg.Type == tea.KeyCtrlC {
 		return m.ctrlC()
 	}
@@ -178,6 +189,20 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		return m.setupKey(msg)
 	}
 	return m.screenKey(msg)
+}
+
+// escRepeat says msg is a held Esc repeating in a terminal (escRepeatGap), which acts as nothing.
+func (m *Model) escRepeat(msg tea.KeyMsg, now time.Time) bool {
+	if !m.terminalKeys {
+		return false
+	}
+	if msg.Type != tea.KeyEsc {
+		m.lastEsc = time.Time{}
+		return false
+	}
+	repeat := !m.lastEsc.IsZero() && now.Sub(m.lastEsc) < escRepeatGap
+	m.lastEsc = now
+	return repeat
 }
 
 // ctrlC quits at once, but asks y first while a flash runs (S20: stopping one can leave the board with no working
@@ -335,6 +360,8 @@ func stopLeaves(k flash.JobKind, r flash.Risk) string {
 		case flash.RiskRadioSent:
 			return "Its new radio is saved but it hasn't restarted, so it stays on its old radio until it does: " +
 				"set it up again to finish, or restart it to switch."
+		case flash.RiskRestarted:
+			return "It restarted with the new settings; only the check after is skipped."
 		}
 		return ""
 	}
@@ -345,6 +372,9 @@ func stopLeaves(k flash.JobKind, r flash.Risk) string {
 		return "It has no working firmware until it is flashed again."
 	case flash.RiskWritten:
 		return "It was already written: only the check is skipped."
+	case flash.RiskBootloader:
+		return "Nothing had been written, but it may be in its bootloader: press its reset button once to start " +
+			"its old firmware."
 	}
 	return ""
 }
@@ -430,12 +460,12 @@ func (m *Model) readBattery() tea.Cmd {
 	}
 }
 
-// listed says p is plugged in now: the same board (usbid.SameBoard) is in the last scan, or, for a port SameBoard
-// can't follow (no useful serial, not a bridge), the same tty with the same identity in the same socket.
+// listed says p is plugged in now: the same board is in the last scan, by the backend's own rule (flash.SameBoard:
+// usbid.SameBoard, or, for a port it can't follow, no useful serial and not a bridge, the same tty with the same
+// identity in the same socket), so the mark never shows ● for a board the backend would say isn't plugged in.
 func (m *Model) listed(p flash.Port) bool {
 	for _, q := range m.scan.Ports {
-		if usbid.SameBoard(p.Port, q.Port) ||
-			(p.Name == q.Name && p.VID == q.VID && p.PID == q.PID && p.USBPath == q.USBPath) {
+		if flash.SameBoard(p, q) {
 			return true
 		}
 	}
@@ -562,7 +592,7 @@ func (m *Model) helpLines() (keys, footer []string) {
 		"Catalog and files: flasher.meshcore.io, zephcore.meshcore.dev; GitHub when a MeshCore file isn't on the " +
 			"flasher site. A catalog update downloads about 1.5 MB.",
 		"Looks for boards on USB every second, reading only what Linux lists; it opens a port only to ask a board " +
-			"on the Board screen what it runs.",
+			"what it runs, on the Board and Choose board screens, and to flash or set it up.",
 		"Keeps its settings in ~/.config/" + m.name + " and its catalog, files and screen.log in ~/.cache/" +
 			m.name + ".",
 		"Reads the messenger's radio from ~/.config/mesh/config.json; never writes it.",

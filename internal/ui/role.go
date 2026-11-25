@@ -4,6 +4,9 @@ package ui
 // (a third-party port) and Ripple (closed source, third-party), with the selected role's notices above them.
 
 import (
+	"sort"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"meshflash/internal/catalog"
@@ -84,36 +87,77 @@ func (m *Model) roleKey(msg tea.KeyMsg) tea.Cmd {
 func (m *Model) roleView(w, h int) ([]string, string) {
 	order := m.roleOrder()
 	m.role.sel = max(0, min(m.role.sel, len(order)-1))
-	var lines []string
-	var notices []int // where each notice starts
+	var list []string
 	selLine := 0
-	if len(order) > 0 {
-		for _, n := range m.flow.dev.Firmware[order[m.role.sel]].Notices {
-			notices = append(notices, len(lines))
-			lines = append(lines, greyAll(wrap(n, w))...)
-		}
-	}
-	listStart := len(lines)
 	k := 0
 	for _, g := range m.roleGroups() {
-		lines = append(lines, heading(cut(g.head, w)))
+		list = append(list, heading(cut(g.head, w)))
 		for _, i := range g.fws {
 			mark := "  "
 			if k == m.role.sel {
-				mark, selLine = "▸ ", len(lines)
+				mark, selLine = "▸ ", len(list)
 			}
-			lines = append(lines, cut(mark+roleName(m.flow.dev.Firmware[i]), w))
+			list = append(list, cut(mark+roleName(m.flow.dev.Firmware[i]), w))
 			k++
 		}
 	}
 	if len(order) == 0 {
-		lines = append(lines, wrap("The catalog has no firmware for this board.", w)...)
+		list = append(list, wrap("The catalog has no firmware for this board.", w)...)
 	}
-	// The notices show while the selection leaves room for them, and scroll off the top as it moves down, a whole
-	// notice at a time (a notice's last lines alone would read as nonsense); the list then scrolls a line at a time.
-	top := max(0, selLine-h+1)
-	if top > 0 && top < listStart {
-		top = itemTop(top, append(notices, listStart))
+	var notes []string
+	if len(order) > 0 {
+		notes = roleNotices(m.flow.dev.Firmware[order[m.role.sel]].Notices, w, h-1)
 	}
-	return lines[top:min(len(lines), top+h)], "j/k move  enter pick  esc back  ? help"
+	// The selected role's notices stay pinned above the list (SPEC 4: a T1000-E's LoRaWAN warning, an OTA
+	// bootloader's advice), and only the list scrolls beneath them, keeping the selection in view.
+	room := max(1, h-len(notes))
+	top := max(0, selLine-room+1)
+	return append(notes, list[top:min(len(list), top+room)]...), "j/k move  enter pick  esc back  ? help"
+}
+
+// roleNotices are a role's notices as the Role screen shows them, in at most h lines: each wrapped whole, in the
+// screen's normal text, never grey, since a notice is a warning to read before flashing ("Please do not flash
+// MeshCore firmware to LoRaWAN version of the t1000e, it can permantently brick the device"). When they don't all
+// fit (40×10, with the selected row under them), whole notices are left out, never a notice's first or last lines
+// alone: one that says the board can be bricked is kept first, then the shortest, and those kept stay in the
+// catalog's order. One function, so which are shown, and how, is easy to change.
+func roleNotices(notices []string, w, h int) []string {
+	wrapped := make([][]string, len(notices))
+	total := 0
+	for i, n := range notices {
+		wrapped[i] = wrap(n, w)
+		total += len(wrapped[i])
+	}
+	if total <= h {
+		var out []string
+		for _, l := range wrapped {
+			out = append(out, l...)
+		}
+		return out
+	}
+	rank := make([]int, len(notices))
+	for i := range rank {
+		rank[i] = i
+	}
+	bricks := func(i int) bool { return strings.Contains(strings.ToLower(notices[i]), "brick") }
+	sort.SliceStable(rank, func(a, b int) bool {
+		if ba, bb := bricks(rank[a]), bricks(rank[b]); ba != bb {
+			return ba
+		}
+		return len(wrapped[rank[a]]) < len(wrapped[rank[b]])
+	})
+	keep := make([]bool, len(notices))
+	used := 0
+	for _, i := range rank {
+		if used+len(wrapped[i]) <= h {
+			keep[i], used = true, used+len(wrapped[i])
+		}
+	}
+	var out []string
+	for i, l := range wrapped {
+		if keep[i] {
+			out = append(out, l...)
+		}
+	}
+	return out
 }

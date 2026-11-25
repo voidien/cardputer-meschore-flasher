@@ -45,7 +45,8 @@ const (
 	// confirmStop: Esc on Flashing, worded by the running picture's flash.Risk: "Stop now? Nothing has been written
 	// yet: the board keeps its firmware." (RiskNone), SPEC's "Stop now? The board will have no working firmware
 	// until it's flashed again." (RiskErased), "Stop now? It's already written; meshflash just won't check it."
-	// (RiskWritten).
+	// (RiskWritten), "Stop now? Nothing is written yet; the board stays in its bootloader until reset."
+	// (RiskBootloader).
 	confirmStop
 	// confirmQuit: Ctrl+C while a flash Job runs: confirmStop's words, ending "…and meshflash quits." y quits (the
 	// frame's quitNow stops the Job). Ctrl+C while a setup is being sent asks nothing: it quits at once, stopping
@@ -60,7 +61,8 @@ const (
 	confirmDelete
 	// confirmStopSetup: Esc while a setup is being sent (builder D's), worded by the picture's flash.Risk: "Stop now?
 	// Nothing has been sent yet." (RiskNone), "Stop now? The node keeps what it was sent so far." (RiskSettings),
-	// "…so far, and switches to the new radio when it restarts." (RiskRadioSent). Only Esc asks it: Ctrl+C quits.
+	// "…so far, and switches to the new radio when it restarts." (RiskRadioSent), "Stop now? It has restarted with
+	// the new settings; meshflash just won't check them." (RiskRestarted). Only Esc asks it: Ctrl+C quits.
 	confirmStopSetup
 )
 
@@ -95,6 +97,9 @@ type Model struct {
 	// heldYGap after it: a held y repeating, which answers no question and starts nothing.
 	lastY time.Time
 	yHeld bool
+	// lastEsc is when Esc was last pressed in a terminal, with no other key since (zero otherwise): a held Esc's
+	// repeats are dropped there (escRepeat).
+	lastEsc time.Time
 
 	// The USB ports as last scanned: the frame reads sysfs (Backend.Scan, which opens no port) every second on
 	// every screen. scanned says the first scan has come back; scanErr is the last scan's error, when it failed (the

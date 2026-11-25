@@ -121,7 +121,9 @@ func TestHelpNamesTheProgram(t *testing.T) {
 	keys, footer := d.m.helpLines()
 	all := strings.Join(append(keys, footer...), "\n")
 	for _, want := range []string{"meshflash-demo 0.1.0 for CardputerZero", "~/.config/meshflash-demo",
-		"~/.cache/meshflash-demo"} {
+		"~/.cache/meshflash-demo",
+		// Where it opens a port: the probes run on Choose board too, and a flash and a setup open one.
+		"on the Board and Choose board screens, and to flash or set it up."} {
 		if !strings.Contains(all, want) {
 			t.Errorf("Help lacks %q:\n%s", want, all)
 		}

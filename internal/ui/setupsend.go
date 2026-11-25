@@ -77,37 +77,19 @@ func (m *Model) setupSendingView(w, h int) ([]string, string) {
 }
 
 // setupEndView is how the setup ended: the Outcome's Summary, then (pinned at the bottom, so what to do now is
-// always in view) what the node is left with, how to finish, and r's line; the Summary scrolls above them, or
-// everything when they alone don't fit (design 8.9).
+// always in view) what the node is left with, how to finish, and r's line; the Summary scrolls above them a
+// paragraph at a time, r's line with it when there is no room, or everything when they alone don't fit (endview.go,
+// design 8.9).
 func (m *Model) setupEndView(w, h int) ([]string, string) {
 	s := &m.setup
 	o := s.outcome
-	var top, pinned []string
-	for _, p := range o.Summary {
-		top = append(top, wrap(p, w)...)
-	}
-	if o.State != "" {
-		pinned = append(pinned, wrap(o.State, w)...)
-	}
-	if o.Recovery != "" {
-		pinned = append(pinned, wrap(o.Recovery, w)...)
-	}
+	pinned := []endPara{{text: o.State}, {text: o.Recovery}}
 	retry := s.mode == setupFailed && o.Retry
 	if retry {
-		pinned = append(pinned, wrap("Press r to go back to the form and send it again (type the password "+
-			"again).", w)...)
+		pinned = append(pinned, endPara{text: "Press r to go back to the form and send it again (" +
+			m.setupRetypeWords() + ").", movable: true})
 	}
-	all := append(append([]string(nil), top...), pinned...)
-	scrolls := len(all) > h
-	var body []string
-	switch {
-	case !scrolls:
-		body = all
-	case len(pinned) < h:
-		body = append(scrolled(top, &s.endTop, h-len(pinned)), pinned...)
-	default:
-		body = scrolled(all, &s.endTop, h)
-	}
+	body, scrolls := endLayout(o.Summary, pinned, w, h, &s.end)
 	var hint string
 	switch {
 	case retry && scrolls:
@@ -126,27 +108,28 @@ func (m *Model) setupEndView(w, h int) ([]string, string) {
 	return body, hint
 }
 
+// setupRetypeWords says which passwords r's form needs typed again: both a room server's (setupBackToForm empties
+// the admin and the guest password), a repeater's admin password.
+func (m *Model) setupRetypeWords() string {
+	if m.setupRoom() {
+		return "type both passwords again"
+	}
+	return "type the password again"
+}
+
 // setupEndKey handles a key at the end: scrolling, r back to the form after a failure that can be retried, and
 // Enter or Esc back to the boards.
 func (m *Model) setupEndKey(msg tea.KeyMsg) tea.Cmd {
 	s := &m.setup
-	_, h := m.size()
-	page := max(1, h-3)
 	switch msg.String() {
-	case "j", "down":
-		s.endTop += scrollStep
-	case "k", "up":
-		s.endTop -= scrollStep
-	case " ":
-		s.endTop += page
-	case "b":
-		s.endTop -= page
 	case "r":
 		if s.mode == setupFailed && s.outcome.Retry {
 			m.setupBackToForm()
 		}
 	case "enter", "esc":
 		return m.toBoard("")
+	default:
+		s.end.key(msg.String())
 	}
 	return nil
 }

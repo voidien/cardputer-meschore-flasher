@@ -87,7 +87,8 @@ func (m *Model) updateKey(msg tea.KeyMsg) tea.Cmd {
 			}
 			m.upd.fetching, m.upd.cancel = false, nil
 			m.upd.gen++
-			return m.toBoard("")
+			// SPEC 4: a stop, like a failure, says the saved catalog stays (or that there is none yet).
+			return m.toBoard("Update stopped. " + m.savedCatalogWords())
 		}
 	case m.upd.err != nil && k == "u":
 		return m.fetchCatalog()
@@ -95,6 +96,18 @@ func (m *Model) updateKey(msg tea.KeyMsg) tea.Cmd {
 		return m.toBoard("")
 	}
 	return nil
+}
+
+// savedCatalogWords says what an update that failed or was stopped leaves: the saved catalog, none yet, or a saved
+// one that is still damaged, as the Board says it.
+func (m *Model) savedCatalogWords() string {
+	switch {
+	case m.cat != nil:
+		return "The saved catalog stays."
+	case m.catErr != nil && !errors.Is(m.catErr, catalog.ErrNoCatalog):
+		return "The saved catalog is still damaged."
+	}
+	return "No catalog is saved yet."
 }
 
 // updateWhy says why an update failed, in plain words.
@@ -117,7 +130,7 @@ func (m *Model) updateView(w, h int) ([]string, string) {
 		add("Fetching the catalog… (" + elapsed(m.now().Sub(m.upd.since)) + ")")
 		return lines, "esc stop  ? help"
 	case m.upd.err != nil:
-		add("The saved catalog stays.")
+		add(m.savedCatalogWords())
 		add(updateWhy(m.upd.err))
 		return lines, "u try again  esc back  ? help"
 	}

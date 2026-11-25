@@ -125,7 +125,7 @@ func TestBoardBusy(t *testing.T) {
 // A repeater too old to set up says why, and s says it can't.
 func TestBoardNotSettable(t *testing.T) {
 	n := repeaterNode(t, rakPort("ttyACM0"), nodecli.RoleRepeater, "v1.10.0", "RAK 4631", "")
-	n.Problem, n.Reason = flash.NotSettable, "it runs v1.10.0; flash v1.11.0 or newer first"
+	n.Problem, n.Reason = flash.NotSettable, "flash v1.11.0 or newer to set it up here." // the backend's words
 	boardGolden(t, []flash.Port{rakPort("ttyACM0")}, map[string]flash.Node{"ttyACM0": n}, nil)
 }
 
@@ -133,7 +133,7 @@ func TestBoardNotSettable(t *testing.T) {
 func TestBoardZephCoreNoSetup(t *testing.T) {
 	n := repeaterNode(t, rakPort("ttyACM0"), nodecli.RoleRepeater, "1.18.2-zephcore", "RAK 4631", "")
 	n.Problem = flash.NotSettable
-	n.Reason = "ZephCore: meshflash sets up only MeshCore's own repeater and room-server firmware."
+	n.Reason = "meshflash sets up only MeshCore's own repeater and room-server firmware." // the backend's words
 	eachSize(t, func(t *testing.T, w, h int) {
 		fb := screensBackend(t, rakPort("ttyACM0"))
 		fb.nodes["ttyACM0"] = n
@@ -149,6 +149,24 @@ func TestBoardZephCoreNoSetup(t *testing.T) {
 func TestBoardProbeFailed(t *testing.T) {
 	boardGolden(t, []flash.Port{heltecV4Port("ttyACM0")}, map[string]flash.Node{"ttyACM0": {
 		Port: heltecV4Port("ttyACM0"), Problem: flash.Failed, Reason: "the port stopped answering mid-reply"}}, nil)
+}
+
+// The catalog line while the saved catalog is still being read, and when it can't be read at all (not damaged, not
+// missing): SPEC 4 Board's words, which no golden holds.
+func TestBoardCatalogLine(t *testing.T) {
+	d := newBareDriver(t)
+	d.hold(true)
+	d.start(45, 10, screensBackend(t, heltecV4Port("ttyACM0")), nil)
+	bodyHas(d, "Reading the saved catalog…")
+	d.releaseAll()
+	bodyLacks(d, "Reading the saved catalog")
+	bodyHas(d, "Catalog from 24 Nov: newest v1.18.0")
+
+	d = boardAt(t, 45, 10, []flash.Port{heltecV4Port("ttyACM0")}, nil, func(fb *fakeBackend) {
+		fb.cat, fb.catErr = nil, errors.New("open config.json: permission denied")
+	})
+	bodyHas(d, "Can't read the saved catalog: ")
+	bodyLacks(d, "No catalog saved", "is damaged")
 }
 
 func TestBoardScanError(t *testing.T) {
@@ -252,5 +270,41 @@ func TestBoardSetUp(t *testing.T) {
 	}
 	if d.m.board.probing != "" {
 		t.Error("a probe still runs on Setup")
+	}
+}
+
+// s while the port is still being asked says to wait, not that it didn't answer; once the answer comes (a repeater,
+// with no key pressed) the note goes, since it no longer says what is true (S16), and s is offered.
+func TestBoardSetUpWhileAsking(t *testing.T) {
+	fb := screensBackend(t, xiaoPort("ttyACM0"))
+	fb.nodes["ttyACM0"] = repeaterNode(t, xiaoPort("ttyACM0"), nodecli.RoleRepeater, "v1.17.1", "", "Hilltop 2")
+	d := newDriver(t, 45, 10, fb)
+	d.hold(true)
+	d.keys("r")
+	d.release(0) // the scan; the probe is held
+	bodyHas(d, "Asking it what")
+	d.keys("s")
+	if d.m.note != "Wait: meshflash is still asking it what it runs." {
+		t.Errorf("s while asking: %q", d.m.note)
+	}
+	d.releaseAll()
+	if d.m.note != "" || hintOf(d) != "enter choose  s set up  u update  ? help" {
+		t.Errorf("after the answer: note %q, hint %q", d.m.note, hintOf(d))
+	}
+}
+
+// s on a node too old to set up says why in the backend's words, which follow the port's "Running …: " there.
+func TestBoardSetUpNotSettableSaysWhy(t *testing.T) {
+	n := repeaterNode(t, rakPort("ttyACM0"), nodecli.RoleRepeater, "v1.10.0", "RAK 4631", "")
+	n.Problem, n.Reason = flash.NotSettable, "flash v1.11.0 or newer to set it up here."
+	fb := screensBackend(t, rakPort("ttyACM0"))
+	fb.nodes["ttyACM0"] = n
+	d := newDriver(t, 45, 10, fb)
+	if got := nodeSays(n); got != "Running repeater v1.10.0: flash v1.11.0 or newer to set it up here." {
+		t.Errorf("the port says %q", got)
+	}
+	d.keys("s")
+	if d.m.note != "Flash v1.11.0 or newer to set it up here." {
+		t.Errorf("s on an old repeater: %q", d.m.note)
 	}
 }

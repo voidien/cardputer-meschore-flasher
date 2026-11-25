@@ -1,10 +1,10 @@
 Flashing stopped                            ○
 The board went away while writing (212 of 361
+KB).
+
 Partially written: the board has no working
 firmware.
 Hold BOOT, press and release RESET, then
 release BOOT, so it starts in its ROM
 bootloader; then flash it again.
-Press r to try again: the file is saved, so
-no Wi-Fi is needed.
 r retry  j/k more  esc back  ? help

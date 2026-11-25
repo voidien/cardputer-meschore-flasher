@@ -94,9 +94,9 @@ type setupScreen struct {
 	picture  flash.Progress
 	stopping bool
 	sentAt   time.Time
-	// The end: how it ended, and the scroll offset of its Summary.
+	// The end: how it ended, and the scroll of its Summary (endview.go).
 	outcome flash.Outcome
-	endTop  int
+	end     endScroll
 }
 
 // setupCancelled is a text box's text as Esc cancelled it (design 10.6).
@@ -274,7 +274,7 @@ func (m *Model) setupGotNode(msg setupReadMsg) {
 		s.mode = setupReadFailed
 		return
 	}
-	m.setupFillForm(msg.messenger, msg.note)
+	m.setupFillForm(msg.messenger)
 }
 
 // setupProgress takes a picture of the running setup Job: pictures of a Job this screen didn't start are ignored
@@ -289,10 +289,8 @@ func (m *Model) setupProgress(p flash.Progress) tea.Cmd {
 	if !p.Done {
 		return nil
 	}
+	// Outcome.Log is already in screen.log: the backend is its one writer (flash.Outcome.Log).
 	o := p.Outcome
-	if o.Log != "" {
-		m.logf("%s", o.Log)
-	}
 	if o.Sent != nil {
 		r := SavedRadio(*o.Sent)
 		m.cfg.Radio = &r
@@ -302,7 +300,7 @@ func (m *Model) setupProgress(p flash.Progress) tea.Cmd {
 			}
 		}
 	}
-	s.outcome, s.endTop, s.stopping = o, 0, false
+	s.outcome, s.end, s.stopping = o, endScroll{}, false
 	if o.OK {
 		s.mode = setupDone
 		m.setupDropDraft()
@@ -356,7 +354,7 @@ func (m *Model) setupHelp() []string {
 	case setupFailed:
 		help := []string{"j/k            scroll (space, b: a page)", "esc, enter     back to the boards"}
 		if m.setup.outcome.Retry {
-			help = append([]string{"r              back to the form to send again (type the password again)"},
+			help = append([]string{"r              back to the form to send again (" + m.setupRetypeWords() + ")"},
 				help...)
 		}
 		return help
@@ -375,6 +373,8 @@ func (m *Model) setupConfirmText(k confirmKind) string {
 		return "Stop now? Nothing has been sent yet."
 	case flash.RiskRadioSent:
 		return "Stop now? The node keeps what it was sent so far, and switches to the new radio when it restarts."
+	case flash.RiskRestarted:
+		return "Stop now? It has restarted with the new settings; meshflash just won't check them."
 	}
 	return "Stop now? The node keeps what it was sent so far."
 }
@@ -436,11 +436,7 @@ func (m *Model) setupReadProblem() []string {
 		return []string{"It echoes but doesn't answer: press its reset button (or unplug it if it has no battery), " +
 			"then press s on the Board again."}
 	case flash.NotSettable:
-		if n.Info.Role != "" {
-			return []string{"Running " + setupRoleWord(n.Info.Role) + " " + n.Info.Version.String() + ": " +
-				n.Reason}
-		}
-		return []string{"It can't be set up here: " + n.Reason}
+		return []string{notSettable(n)}
 	case flash.InBootloader:
 		return []string{"It's in its bootloader: flash it first, or press its reset button once to start its " +
 			"firmware."}

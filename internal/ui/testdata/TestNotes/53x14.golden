@@ -9,6 +9,6 @@ Fixed bug where some queued packets would not get
 transmit in #1877
 Fixed bug where automatic adverts were not using the
 configured multibyte path setting in
-https://github.com/meshcore-dev/MeshCore/commit/fcfdc
-5fc5b1e0cf81b4ca2dfbc51d714f3eb1ead
+https://github.com/meshcore-dev/MeshCore/commit/
+fcfdc5fc5b1e0cf81b4ca2dfbc51d714f3eb1ead
 j/k scroll  space page  esc back  ? help

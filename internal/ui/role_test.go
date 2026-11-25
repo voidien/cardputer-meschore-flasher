@@ -55,6 +55,25 @@ func TestRoleT1000ENotice(t *testing.T) {
 	})
 }
 
+// The selected role's notices stay pinned above the list whichever role is selected, at every size: on a T1000-E,
+// whose every role carries the LoRaWAN warning, moving down to ZephCore's roles never scrolls it off (SPEC 4, owner
+// answer "T1000-E warning: shown only").
+func TestRoleNoticePinned(t *testing.T) {
+	eachSize(t, func(t *testing.T, w, h int) {
+		d := roleAt(t, w, h, rakPort("ttyACM0"), "Seeed Studio SenseCAP T1000-E")
+		for i := range d.m.roleOrder() {
+			if i > 0 {
+				d.keys("j")
+			}
+			fw := d.m.flow.dev.Firmware[d.m.roleOrder()[d.m.role.sel]]
+			if len(fw.Notices) == 0 {
+				continue
+			}
+			bodyHas(d, "Please do not flash")
+		}
+	})
+}
+
 // A board only ZephCore has: its roles alone (reached only here: Choose board refuses the ESP32-C6).
 func TestRoleZephCoreOnly(t *testing.T) {
 	eachSize(t, func(t *testing.T, w, h int) {

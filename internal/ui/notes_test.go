@@ -72,8 +72,8 @@ func TestNotesKeys(t *testing.T) {
 		t.Errorf("k at the top: %d", d.m.notes.top)
 	}
 	d.keys("j")
-	if d.m.notes.top != scrollStep {
-		t.Errorf("j: %d", d.m.notes.top)
+	if scrollStep != 2 || d.m.notes.top != 2 {
+		t.Errorf("j: %d (scrollStep %d), want two lines (owner question 15)", d.m.notes.top, scrollStep)
 	}
 	for i := 0; i < 20; i++ {
 		d.keys(" ")

@@ -3,14 +3,15 @@ package ui
 // The Saved files screen's goldens and keys (docs/phase2-design.md 9.11).
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"meshflash/internal/catalog"
 )
 
-// savedFiles are files the catalog lists (a Heltec v4 repeater's update image, which four boards share; a Xiao's
-// package) and one it no longer does.
+// savedFiles are files the catalog lists (a Heltec v4 repeater's update image, which only the Heltec v4 lists; a
+// Xiao's package) and one it no longer does. TestFilesSharedByBoards has a file two boards list.
 func savedFixture(t testing.TB) []catalog.Entry {
 	h := flowFor(t, heltecV4Port("ttyACM0"), "Heltec v4", "repeater", "v1.18.0")
 	x := flowFor(t, xiaoPort("ttyACM0"), "Seeed Studio Xiao nRF52 WIO", "repeater", "v1.17.1")
@@ -36,6 +37,17 @@ func TestFilesList(t *testing.T) {
 		d, _ := filesAt(t, w, h, savedFixture(t))
 		d.check(w, h)
 	})
+}
+
+// A file two catalog boards list names the first and counts the other (design 9.11, SPEC 4 Saved files): the
+// GAT562 Tracker and the GAT562 30s share their room server builds.
+func TestFilesSharedByBoards(t *testing.T) {
+	f := flowFor(t, xiaoPort("ttyACM0"), "GAT-IoT GAT562 Tracker", "roomServer", "v1.17.1")
+	d, _ := filesAt(t, 45, 10, []catalog.Entry{savedFile(t, f, "v1.17.1", "flash", 352_000, time.Hour)})
+	if v := strings.Join(strings.Fields(d.view()), " "); !strings.Contains(v,
+		"GAT-IoT GAT562 Tracker and 1 more board · ") || !strings.Contains(v, " v1.17.1 · 352 KB · 24 Nov") {
+		t.Errorf("a file two boards list:\n%s", d.view())
+	}
 }
 
 func TestFilesEmpty(t *testing.T) {

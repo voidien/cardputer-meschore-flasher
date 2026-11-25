@@ -123,7 +123,7 @@ func setupStoreBuilt(d *driver) bool {
 // and the check).
 var setupTestSteps = []string{
 	"Clock: set to the Zero's time", "Name: Hilltop 2", "Radio: 869.618 MHz, 62.5 kHz, SF8, CR8",
-	"TX power: 22 dBm", "Path hash: 1 bytes", "Latitude: 51.5074", "Longitude: -0.1278", "Local advert: off",
+	"TX power: 22 dBm", "Path hash: 1 byte", "Latitude: 51.5074", "Longitude: -0.1278", "Local advert: off",
 	"Admin password: ••••", "Check name", "Check radio", "Check TX power", "Check path hash", "Check latitude",
 	"Check longitude", "Check local advert", "Reboot to start the new radio", "Back on USB (ttyACM0)",
 	"Check: v1.18.0 on 869.618 MHz",
@@ -212,7 +212,7 @@ func TestSetupNotARepeater(t *testing.T) {
 		p := heltecV4Port("ttyACM0")
 		n := setupNode(p, nodecli.RoleRepeater, "v1.18.2-zephcore")
 		n.Problem = flash.NotSettable
-		n.Reason = "ZephCore: meshflash sets up only MeshCore's own repeater and room-server firmware."
+		n.Reason = "meshflash sets up only MeshCore's own repeater and room-server firmware." // the backend's words
 		d := newDriver(t, w, h, setupBackend(p, n))
 		setupOpen(d, p)
 		d.check(w, h)
@@ -559,12 +559,51 @@ func TestSetupStopNeedsYes(t *testing.T) {
 	}
 }
 
+// A preset applied moves the focus to Frequency and names itself (SPEC 4 Setup); the text boxes say what they take,
+// the TX power's range with an ASCII hyphen; a local advert typed in minutes reads "every 120 minutes", and a blank
+// one "not sent".
+func TestSetupPresetNoteAndBoxWords(t *testing.T) {
+	d, _ := setupDriver(t, 45, 10)
+	setupPreset(d, 1)
+	if d.m.setup.focus != setupFreq || d.m.setup.mode != setupForm {
+		t.Errorf("after a preset: focus %d, mode %d; want Frequency, the form", d.m.setup.focus, d.m.setup.mode)
+	}
+	if want := "Radio set from the " + nodecli.Presets[1].Title + " preset."; d.m.note != want {
+		t.Errorf("note %q, want %q", d.m.note, want)
+	}
+
+	boxSays := func(r setupRow, want string) {
+		t.Helper()
+		setupFocus(d, r)
+		d.keys("enter")
+		if !strings.Contains(setupScreenText(d), want) {
+			t.Errorf("row %d's box lacks %q:\n%s", r, want, d.view())
+		}
+		d.keys("esc")
+	}
+	boxSays(setupFreq, "In MHz, such as 869.618.")
+	limit, _ := nodecli.TxLimit(d.m.setup.device, d.m.setup.node.Info.Board)
+	boxSays(setupTx, fmt.Sprintf("In dBm, -9 to %d on this board.", limit))
+	boxSays(setupLat, "In degrees, -90 to 90; blank sends nothing.")
+	boxSays(setupLon, "In degrees, -180 to 180; blank sends nothing.")
+
+	setupType(d, setupAdvert, "120")
+	if !strings.Contains(setupScreenText(d), "every 120 minutes") {
+		t.Errorf("a local advert of 120:\n%s", d.view())
+	}
+	setupType(d, setupAdvert, "")
+	if !strings.Contains(setupScreenText(d), "Local advert not sent") {
+		t.Errorf("a blank local advert:\n%s", d.view())
+	}
+}
+
 // The question says what stopping leaves, by the picture's Risk.
 func TestSetupStopWords(t *testing.T) {
 	for risk, want := range map[flash.Risk]string{
 		flash.RiskNone:      "Stop now? Nothing has been sent yet.",
 		flash.RiskSettings:  "Stop now? The node keeps what it was sent so far.",
 		flash.RiskRadioSent: "Stop now? The node keeps what it was sent so far, and switches to the new radio when it restarts.",
+		flash.RiskRestarted: "Stop now? It has restarted with the new settings; meshflash just won't check them.",
 	} {
 		d, _, j, _ := setupSendingDriver(t, 45, 10)
 		j.Set(setupAt(1, risk))
@@ -1239,6 +1278,39 @@ func TestSetupDraftKeptThroughEscHold(t *testing.T) {
 	}
 }
 
+// The same in the CLI app, where a held Esc arrives as Esc again and again (after 250 ms, then every 33 ms): the
+// repeats are dropped (escRepeatGap), so they neither leave the form, losing the cancelled text, nor walk back to
+// the Board and quit before the launcher's SIGTERM; a separate Esc later still goes back.
+func TestSetupDraftKeptThroughEscHoldInTerminal(t *testing.T) {
+	d, _ := setupDriver(t, 45, 10, func(o *Options) { o.TerminalKeys = true })
+	setupNeedsStore(t, d)
+	d.keys("enter", "ctrl+u")
+	d.typeText("Hill")
+	d.keys("esc")
+	for range 20 {
+		d.advance(33 * time.Millisecond)
+		d.keys("esc")
+	}
+	if d.quit || d.m.screen != scrSetup || d.m.setup.mode != setupForm {
+		t.Fatalf("a held Esc's repeats acted: quit %v, screen %d, mode %d", d.quit, d.m.screen, d.m.setup.mode)
+	}
+	d.m.Shutdown()
+	if draft, ok := d.st.LoadDraft(heltecV4Port("").DraftKey()); !ok || draft.Name != "Hill" {
+		t.Errorf("the draft after an Esc hold in a terminal: %+v (%v)", draft, ok)
+	}
+
+	d2, _ := setupDriver(t, 45, 10, func(o *Options) { o.TerminalKeys = true })
+	d2.keys("esc")
+	if d2.m.screen != scrBoard {
+		t.Fatalf("Esc on the form: screen %d", d2.m.screen)
+	}
+	d2.advance(escRepeatGap)
+	d2.keys("esc")
+	if !d2.quit {
+		t.Error("an Esc 0.5 s after the last didn't act")
+	}
+}
+
 // A key, or 3.5 s, after the Esc drops the cancelled line: only an Esc hold keeps it.
 func TestSetupCancelledTextDropped(t *testing.T) {
 	for _, between := range []string{"key", "3.5 s"} {
@@ -1360,5 +1432,57 @@ func TestNoGoldenHoldsThePassword(t *testing.T) {
 	}
 	if n == 0 {
 		t.Error("no goldens found")
+	}
+}
+
+// The form scrolls by whole rows (S11): the window never starts with what is said under a row without the row, and
+// never ends partway through a row's words (the row then shows alone), but the focused row is left as it is.
+func TestSetupFormScrollsByWholeRows(t *testing.T) {
+	// Rows of 1 line, 3 lines (a row and two lines of problem), 1 line, 2 lines (a row wrapped over two lines).
+	spans := []setupSpan{{0, 1, 1}, {1, 2, 4}, {4, 5, 5}, {5, 7, 7}}
+	for _, c := range []struct {
+		top, end, from   int
+		wantTop, wantEnd int
+	}{
+		{0, 3, 0, 0, 2}, // ends in row 1's problem: row 1 alone
+		{0, 6, 0, 0, 5}, // ends inside row 3's wrapped row: not shown
+		{2, 6, 4, 4, 5}, // starts in row 1's problem: from row 2 (focused) on; row 3 cut, so not shown
+		{2, 4, 1, 2, 4}, // row 1 focused: left as it is
+		{0, 3, 1, 0, 3}, // row 1 focused, its problem cut: left as it is
+		{0, 7, 5, 0, 7}, // everything fits
+	} {
+		top, end := setupWhole(spans, c.top, c.end, c.from)
+		if top != c.wantTop || end != c.wantEnd {
+			t.Errorf("setupWhole(%d, %d, from %d) = %d, %d; want %d, %d", c.top, c.end, c.from, top, end,
+				c.wantTop, c.wantEnd)
+		}
+	}
+}
+
+// After a room server's setup failed, r empties both passwords, so its line and Help say both must be typed again.
+func TestSetupRetryRoomServerBothPasswords(t *testing.T) {
+	p := heltecV4Port("ttyACM0")
+	fb := setupBackend(p, setupNode(p, nodecli.RoleRoomServer, "v1.18.0"))
+	d := newDriver(t, 45, 10, fb)
+	setupOpen(d, p)
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	j := flash.NewJob(flash.JobSetup, nil, cancel)
+	fb.set(func(f *fakeBackend) { f.setup = func(flash.SetupRequest) *flash.Job { return j } })
+	setupType(d, setupGuest, setupTestGuest)
+	setupType(d, setupAdmin, setupTestAdmin)
+	d.keys("y")
+	if d.m.setup.mode != setupSending {
+		t.Fatalf("y didn't send: mode %d, note %q", d.m.setup.mode, d.m.note)
+	}
+	j.Finish(flash.Outcome{Title: "Setup stopped", Retry: true, Summary: []string{"Name: the node didn't answer."},
+		State: "Nothing on the node was changed."})
+	d.settle()
+	if got := setupScreenText(d); !strings.Contains(got, "(type both passwords again)") {
+		t.Errorf("the end doesn't say both passwords go: %s", got)
+	}
+	d.keys("?")
+	if got := setupScreenText(d); !strings.Contains(got, "type both passwords again") {
+		t.Errorf("Help doesn't say both passwords go: %s", got)
 	}
 }

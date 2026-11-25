@@ -11,45 +11,34 @@ import (
 	"meshflash/internal/flash"
 )
 
-// resultScreen is the Result screen's state: the Outcome and the Summary's scroll.
+// resultScreen is the Result screen's state: the Outcome and the Summary's scroll (endview.go).
 type resultScreen struct {
-	o   flash.Outcome
-	top int
+	o      flash.Outcome
+	scroll endScroll
 }
 
 // canSetUp says s makes sense: the backend said so (MeshCore's own repeater or room server, answering as one) and
 // the board is on USB to set up.
 func (m *Model) canSetUp() bool { return m.res.o.Setup && m.res.o.Board != nil }
 
-// resultLines are the Summary, which scrolls, and what stays in view: State, Recovery, and the key to press.
-func (m *Model) resultLines(w int) (summary, pinned []string) {
+// resultRetry is the line r's retry adds: the generic one, which may scroll with the Summary when there is no room
+// (endPara.movable).
+const resultRetry = "Press r to try again: the file is saved, so no Wi-Fi is needed."
+
+// resultParts are the Summary, which scrolls, and what stays in view: State, Recovery, and the key to press.
+func (m *Model) resultParts() (summary []string, pinned []endPara) {
 	o := m.res.o
-	for _, s := range o.Summary {
-		summary = append(summary, wrap(s, w)...)
-	}
-	for _, s := range []string{o.State, o.Recovery} {
-		if s != "" {
-			pinned = append(pinned, wrap(s, w)...)
-		}
-	}
+	pinned = []endPara{{text: o.State}, {text: o.Recovery}}
 	if o.Retry {
-		pinned = append(pinned, wrap("Press r to try again: the file is saved, so no Wi-Fi is needed.", w)...)
+		pinned = append(pinned, endPara{text: resultRetry, movable: true})
 	}
 	if m.canSetUp() {
-		pinned = append(pinned, wrap("Press s to set it up.", w)...)
+		pinned = append(pinned, endPara{text: "Press s to set it up."})
 	}
-	return summary, pinned
-}
-
-// resultScrolls says the body doesn't fit h lines, so j/k scroll it.
-func (m *Model) resultScrolls(w, h int) bool {
-	s, p := m.resultLines(w)
-	return len(s)+len(p) > h
+	return o.Summary, pinned
 }
 
 func (m *Model) resultKey(msg tea.KeyMsg) tea.Cmd {
-	_, h := m.size()
-	page := max(1, h-3)
 	switch msg.String() {
 	case "s":
 		if m.canSetUp() {
@@ -62,14 +51,8 @@ func (m *Model) resultKey(msg tea.KeyMsg) tea.Cmd {
 		}
 	case "enter", "esc":
 		return m.toBoard("")
-	case "j", "down":
-		m.res.top += scrollStep
-	case "k", "up":
-		m.res.top -= scrollStep
-	case " ":
-		m.res.top += page
-	case "b":
-		m.res.top -= page
+	default:
+		m.res.scroll.key(msg.String())
 	}
 	return nil
 }
@@ -89,18 +72,8 @@ func (m *Model) retry() tea.Cmd {
 }
 
 func (m *Model) resultView(w, h int) ([]string, string) {
-	sum, pin := m.resultLines(w)
-	scrolls := len(sum)+len(pin) > h
-	var body []string
-	switch {
-	case !scrolls:
-		m.res.top = 0
-		body = append(sum, pin...)
-	case len(pin) < h:
-		body = append(append([]string(nil), scrolled(sum, &m.res.top, h-len(pin))...), pin...)
-	default:
-		body = scrolled(append(sum, pin...), &m.res.top, h)
-	}
+	sum, pin := m.resultParts()
+	body, scrolls := endLayout(sum, pin, w, h, &m.res.scroll)
 	var hint string
 	switch {
 	case m.canSetUp() && scrolls:
@@ -127,5 +100,5 @@ func (m *Model) resultHelp() []string {
 	if m.res.o.Retry {
 		out = append(out, keyHelp("r", "try again from the saved file"))
 	}
-	return append(out, keyHelp("j/k", "scroll"), keyHelp("enter, esc", "back to the boards"))
+	return append(out, keyHelp("j/k", "scroll (space, b: a page)"), keyHelp("enter, esc", "back to the boards"))
 }

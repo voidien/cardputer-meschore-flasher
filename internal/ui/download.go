@@ -6,7 +6,6 @@ package ui
 
 import (
 	"context"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -80,17 +79,21 @@ func (m *Model) downloadKey(msg tea.KeyMsg) tea.Cmd {
 }
 
 // downloadFrom says where the file being fetched comes from: its site, or GitHub when the flasher site didn't have
-// it (the backend's step says so in its Note).
+// it (the backend's step says which URL it is fetching: flash.Step.From).
 func (m *Model) downloadFrom() string {
-	steps := m.dl.p.Steps
-	if n := len(steps); n > 0 && strings.Contains(strings.ToLower(steps[n-1].Note), "github") {
-		return "From GitHub (the flasher site didn't have it)"
-	}
 	if len(m.dl.files) == 0 {
 		return ""
 	}
+	steps := m.dl.p.Steps
 	i := max(0, min(len(steps)-1, len(m.dl.files)-1))
-	return "From " + host(m.dl.files[i].URL)
+	f, url := m.dl.files[i], m.dl.files[i].URL
+	if n := len(steps); n > 0 && steps[n-1].From != "" {
+		url = steps[n-1].From
+	}
+	if f.Fallback != "" && url == f.Fallback {
+		return "From GitHub (the flasher site didn't have it)"
+	}
+	return "From " + host(url)
 }
 
 func (m *Model) downloadView(w, h int) ([]string, string) {
@@ -100,7 +103,8 @@ func (m *Model) downloadView(w, h int) ([]string, string) {
 	}
 	foot = append(foot, wrap("Wi-Fi needed.", w)...)
 	room := max(1, h-len(foot)-1)
-	steps := fitSteps(m.dl.p, w, room, m.now().Sub(m.jobSeenAt))
+	// A step's Text is the file's name: a label, cut on its own line, its bytes under it (S11).
+	steps := fitLabelSteps(m.dl.p, w, room, m.now().Sub(m.jobSeenAt))
 	if len(steps) == 0 {
 		steps = wrap("Starting the download…", w)
 	}

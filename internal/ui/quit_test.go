@@ -103,3 +103,19 @@ func TestCtrlCWhileDownloadingQuitsQuietly(t *testing.T) {
 		t.Errorf("a download's stop was logged:\n%s", d.logText())
 	}
 }
+
+// Ctrl+C on a flash these screens didn't start (it shouldn't happen) asks all the same, in the words that are sure
+// whatever its picture says (SPEC 4 Flashing); n leaves it running.
+func TestCtrlCOnAFlashFromElsewhereAsks(t *testing.T) {
+	d := newDriver(t, 45, 10, newFakeBackend())
+	_, ctx := runningJob(d, flash.JobFlash, writing(151_000))
+	d.keys("ctrl+c")
+	want := "Quit now? The flash under way stops the safe way, and meshflash quits."
+	if d.m.confirm != confirmQuit || d.m.confirmText() != want {
+		t.Errorf("question %v %q, want %q", d.m.confirm, d.m.confirmText(), want)
+	}
+	d.keys("n")
+	if d.quit || ctx.Err() != nil {
+		t.Errorf("n: quit %v, the flash stopped %v", d.quit, ctx.Err() != nil)
+	}
+}

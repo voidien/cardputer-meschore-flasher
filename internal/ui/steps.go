@@ -2,7 +2,7 @@ package ui
 
 // Phase 2 contract (docs/phase2-design.md): this file is fixed and complete (the integrator's). Flashing, Download
 // (builder C) and Setup's sending and end (builder D) list a Job's steps with these, so the marks and words are the
-// same everywhere and use only S15's glyphs.
+// same everywhere and use only S15's glyphs. Download lists its file names as labels (fitLabelSteps).
 
 import (
 	"fmt"
@@ -39,17 +39,33 @@ func stepLines(p flash.Progress, w int, extra time.Duration) []string {
 // twenty commands): the last steps are kept, so the running or failed one is always in view, and the oldest are
 // folded into one line, "✓ 3 earlier steps". When even the last step alone takes more than h lines, its first h.
 func fitSteps(p flash.Progress, w, h int, extra time.Duration) []string {
+	return fitGroups(p, h, func(s flash.Step) []string { return stepGroup(p, s, w, extra) })
+}
+
+// fitLabelSteps is fitSteps for steps whose Text is a label, not words (a download's file name, often wider than
+// the screen: 40 to 80 characters): each step is its mark and the label on one line, cut with "…" (S11: only a
+// label is cut), and its bytes and time on the next (labelGroup).
+func fitLabelSteps(p flash.Progress, w, h int, extra time.Duration) []string {
+	return fitGroups(p, h, func(s flash.Step) []string { return labelGroup(p, s, w, extra) })
+}
+
+// fitGroups is fitSteps' folding, over each step's lines as group gives them.
+func fitGroups(p flash.Progress, h int, group func(flash.Step) []string) []string {
 	if h < 1 || len(p.Steps) == 0 {
 		return nil
 	}
 	groups := make([][]string, len(p.Steps))
 	total := 0
 	for i, s := range p.Steps {
-		groups[i] = stepGroup(p, s, w, extra)
+		groups[i] = group(s)
 		total += len(groups[i])
 	}
 	if total <= h {
-		return stepLines(p, w, extra)
+		var out []string
+		for _, g := range groups {
+			out = append(out, g...)
+		}
+		return out
 	}
 	kept, used := len(groups), 0
 	for kept > 0 && used+len(groups[kept-1]) <= h-1 {
@@ -77,6 +93,19 @@ func stepGroup(p flash.Progress, s flash.Step, w int, extra time.Duration) []str
 		} else {
 			lines[i] = "  " + l
 		}
+	}
+	return lines
+}
+
+// labelGroup is one label step's lines: its mark and its Text cut to one line, then what stepText adds after the
+// Text (the bytes, a note, the time) wrapped under it with the same indent, "" when there is nothing.
+func labelGroup(p flash.Progress, s flash.Step, w int, extra time.Duration) []string {
+	mark, text := stepText(p, s, extra)
+	lines := []string{mark + " " + cut(s.Text, max(1, w-2))}
+	tail := strings.TrimSpace(strings.TrimPrefix(text, s.Text))
+	tail = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(tail, ":"), "·"))
+	if tail != "" {
+		lines = append(lines, indented(tail, w)...)
 	}
 	return lines
 }

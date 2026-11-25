@@ -259,23 +259,30 @@ func (m *Model) confirmView(w, h int) ([]string, string) {
 		return nil, "esc back  ? help"
 	}
 	// Each part is wrapped whole; when they don't all fit (40×10 with a question open), the ones that only explain
-	// go first: what the kind does, then Prepare's notes. What is about to be written, and every warning, stay.
+	// go first: what the kind does, then Prepare's notes; then the head is shortened to the board's name, then the
+	// file line loses its size. What is about to be written, and every warning, stay: if even then it doesn't fit,
+	// the top lines go (confirmFit), never the warnings and the file's check at the bottom.
 	type part struct {
 		lines    []string
-		optional int // 0: always shown; else dropped in this order (1 first) when the screen is short
+		optional int      // 0: always shown; else dropped in this order (1 first) when the screen is short
+		short    []string // its shorter form, from drop shortAt on (nil: none)
+		shortAt  int
 	}
 	var parts []part
-	add := func(optional int, s string) { parts = append(parts, part{wrap(s, w), optional}) }
+	add := func(optional int, s string) { parts = append(parts, part{lines: wrap(s, w), optional: optional}) }
 	add(0, m.confirmHead())
+	parts[0].short, parts[0].shortAt = []string{cut(m.devName(), w)}, 3
 	if m.conf.state != "" {
 		add(0, m.conf.state)
 	}
 	pr := m.conf.current()
 	kind := m.flow.kind
 	file := m.fwName() + " " + m.verName()
+	short := ""
 	switch {
 	case kind == 0:
 	case pr != nil && pr.p.Saved:
+		short = file + " · " + kind.String()
 		file += " · " + byteSize(pr.p.Entry.Size) + " · " + kind.String()
 	case pr != nil && pr.p.Problem == "":
 		file += " · " + kind.String() + " · not saved yet"
@@ -283,6 +290,9 @@ func (m *Model) confirmView(w, h int) ([]string, string) {
 		file += " · " + kind.String()
 	}
 	add(0, file)
+	if short != "" {
+		parts[len(parts)-1].short, parts[len(parts)-1].shortAt = wrap(short, w), 4
+	}
 	switch kind {
 	case catalog.Update:
 		add(1, "Keeps identity, contacts and pairing.")
@@ -323,26 +333,33 @@ func (m *Model) confirmView(w, h int) ([]string, string) {
 	if gone {
 		add(0, "The board isn't plugged in now.")
 	}
-	count := func(drop int) int {
-		n := 0
+	shown := func(drop int) []string {
+		var lines []string
 		for _, p := range parts {
-			if p.optional == 0 || p.optional > drop {
-				n += len(p.lines)
+			switch {
+			case p.optional != 0 && p.optional <= drop:
+			case p.short != nil && drop >= p.shortAt:
+				lines = append(lines, p.short...)
+			default:
+				lines = append(lines, p.lines...)
 			}
 		}
-		return n
+		return lines
 	}
 	drop := 0
-	for drop < 2 && count(drop) > h {
+	for drop < 4 && len(shown(drop)) > h {
 		drop++
 	}
-	var lines []string
-	for _, p := range parts {
-		if p.optional == 0 || p.optional > drop {
-			lines = append(lines, p.lines...)
-		}
+	return confirmFit(shown(drop), h), m.confirmHint(w, pr, gone)
+}
+
+// confirmFit keeps Confirm's last h lines when nothing more can be left out: the frame would cut the bottom, where
+// the file's check and the warnings are (the battery, a board not plugged in).
+func confirmFit(lines []string, h int) []string {
+	if len(lines) > h {
+		return lines[len(lines)-h:]
 	}
-	return lines, m.confirmHint(w, pr, gone)
+	return lines
 }
 
 func (m *Model) confirmHint(w int, pr *preparedMsg, gone bool) string {

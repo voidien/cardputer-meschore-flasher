@@ -1,10 +1,10 @@
 Flashing stopped                       ○
 The board went away as the last of the
+image was sent, before it said it had
+it.
 Most likely written, but the board
 didn't come back.
 Press its reset button once; if it
 doesn't start, press reset twice quickly
 and flash it again.
-Press r to try again: the file is saved,
-so no Wi-Fi is needed.
 r retry  j/k more  esc back  ? help

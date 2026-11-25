@@ -94,14 +94,14 @@ func (m *Model) setupHasPathHash() bool { return m.setup.node.Info.Version.AtLea
 
 // setupFillForm builds the form from the node's settings, the messenger's radio, the last radio sent and the draft
 // (design 10.3), in that order of preference.
-func (m *Model) setupFillForm(mr nodecli.MessengerRadio, note string) {
+func (m *Model) setupFillForm(mr nodecli.MessengerRadio) {
 	s := &m.setup
 	cur, info := s.node.Current, s.node.Info
 	var d [setupRowCount]string
 	d[setupName] = cur.Name
 
-	// The radio: the messenger's when its file was used, else the last one sent when this firmware takes it, else
-	// the node's own. (The backend gives no note and a zero radio when there is no messenger file to read at all.)
+	// The radio: the messenger's when its file was used (Found: the note is for the form, not for telling "used" from
+	// "no file"), else the last one sent when this firmware takes it, else the node's own.
 	radio := cur.Radio
 	var last *nodecli.Radio
 	if c := m.cfg.Radio; c != nil {
@@ -109,7 +109,7 @@ func (m *Model) setupFillForm(mr nodecli.MessengerRadio, note string) {
 		last = &r
 	}
 	switch {
-	case note == "" && mr.Radio.FreqMHz > 0:
+	case mr.Found():
 		radio = mr.Radio
 	case last != nil && nodecli.CheckRadio(*last, info.Version) == nil:
 		radio = *last
@@ -317,13 +317,12 @@ func setupNumber(t string) (float64, bool) {
 }
 
 // setupProblem is a FieldError's problem as a sentence under its row: capitalised (the row's label already names
-// the field), with nodecli's minus sign (−, U+2212) written as the ASCII hyphen the device's font has (S15).
+// the field). nodecli writes its problems in S15's glyphs (an ASCII hyphen for a minus), so they show as they are.
 func setupProblem(err error) string {
 	p := err.Error()
 	if fe, ok := err.(*nodecli.FieldError); ok {
 		p = fe.Problem
 	}
-	p = strings.ReplaceAll(p, "−", "-")
 	r, n := utf8.DecodeRuneInString(p)
 	return string(unicode.ToUpper(r)) + p[n:]
 }
@@ -429,9 +428,12 @@ func (m *Model) setupFormView(w, h int) ([]string, string) {
 	}
 	from, to := 0, 0
 	rows := m.setupFormRows()
+	var spans []setupSpan
 	for i, r := range rows {
 		start := len(lines)
-		lines = append(lines, m.setupRowLines(r, w)...)
+		row, head := m.setupRowLines(r, w)
+		lines = append(lines, row...)
+		spans = append(spans, setupSpan{start: start, head: start + head, end: len(lines)})
 		if r == s.focus {
 			from, to = start, len(lines)
 			if i == 0 {
@@ -440,7 +442,8 @@ func (m *Model) setupFormView(w, h int) ([]string, string) {
 		}
 	}
 	s.top = setupScroll(s.top, from, to, h, len(lines))
-	lines = lines[s.top:min(len(lines), s.top+h)]
+	top, end := setupWhole(spans, s.top, min(len(lines), s.top+h), from)
+	lines = lines[top:end]
 	if s.mode == setupEditing {
 		return lines, "enter keep  esc cancel  tab next"
 	}
@@ -448,8 +451,9 @@ func (m *Model) setupFormView(w, h int) ([]string, string) {
 }
 
 // setupRowLines is one row: its mark (▸ focused, ✎ being edited), its label, its value wrapped in the value column
-// (or the open text box), then under it in grey its problem, the TX cap's note, or what the open box takes.
-func (m *Model) setupRowLines(r setupRow, w int) []string {
+// (or the open text box), then under it in grey its problem, the TX cap's note, or what the open box takes; and how
+// many of those lines are the row itself (the rest are what is said under it).
+func (m *Model) setupRowLines(r setupRow, w int) ([]string, int) {
 	s := &m.setup
 	lw := min(setupLabelW, max(2, w-8))
 	vw := max(1, w-2-lw)
@@ -482,6 +486,7 @@ func (m *Model) setupRowLines(r setupRow, w int) []string {
 	for _, l := range vals[1:] {
 		out = append(out, strings.Repeat(" ", 2+lw)+l)
 	}
+	rowLines := len(out)
 	under := s.problems[r]
 	switch {
 	case under != "":
@@ -495,7 +500,34 @@ func (m *Model) setupRowLines(r setupRow, w int) []string {
 			out = append(out, grey.Render("    "+l))
 		}
 	}
-	return out
+	return out, rowLines
+}
+
+// setupSpan is where a form row's lines are: from start, its row (and the value's wrapped lines) up to head, then
+// what is said under it in grey (its problem, the TX cap note, an open box's hint) up to end.
+type setupSpan struct{ start, head, end int }
+
+// setupWhole fits the window [top, end) to whole rows (S11, as the other screens' lists scroll by whole items): it
+// never starts with what is said under a row without the row, and never ends partway through a row or partway
+// through what is said under one (then the row shows alone, and its words once it is scrolled to). A row that holds
+// the focused row's first line (from) is left as it is.
+func setupWhole(spans []setupSpan, top, end, from int) (int, int) {
+	for _, sp := range spans {
+		if sp.start < top && top < sp.end && sp.end <= from {
+			top = sp.end
+		}
+	}
+	for _, sp := range spans {
+		switch {
+		case sp.start <= from && from < sp.end:
+			// The focused row shows as setupScroll placed it.
+		case sp.start < end && end < sp.head && sp.start > top:
+			end = sp.start
+		case sp.head < end && end < sp.end && sp.head > top:
+			end = sp.head
+		}
+	}
+	return top, max(top, end)
 }
 
 // setupScroll is the scroll offset of an n-line view h lines high that keeps lines [from, to) in view, moving as

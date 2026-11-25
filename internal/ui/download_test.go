@@ -4,6 +4,7 @@ package ui
 // settle.
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -55,11 +56,22 @@ func TestDownloadUnknownSize(t *testing.T) {
 	})
 }
 
-// The flasher site didn't have it: the backend fell back to GitHub, and the screen says so.
+// The flasher site didn't have it: the backend fell back to GitHub (its step's From is the file's GitHub URL), and
+// the screen says so; before that, the step's From is the flasher site's URL, and the screen names that site.
 func TestDownloadGitHub(t *testing.T) {
 	eachSize(t, func(t *testing.T, w, h int) {
 		d, _, j := downloadAt(t, w, h)
-		j.Set(downloading(40_000, 361_000, "from GitHub"))
+		f := d.m.dl.files[0]
+		if f.Fallback == "" {
+			t.Fatalf("%s has no GitHub fallback in the test catalog", f.Base())
+		}
+		j.Set(downloading(40_000, 361_000, ""))
+		j.Set(func(p *flash.Progress) { p.Steps[0].From = f.URL })
+		d.settle()
+		if from := d.m.downloadFrom(); from != "From "+host(f.URL) || strings.Contains(from, "GitHub") {
+			t.Errorf("fetching from the flasher site, the screen says %q", from)
+		}
+		j.Set(func(p *flash.Progress) { p.Steps[0].From = f.Fallback })
 		d.settle()
 		d.check(w, h)
 	})

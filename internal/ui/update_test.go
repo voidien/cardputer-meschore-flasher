@@ -4,6 +4,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,6 +63,34 @@ func TestUpdateHTTPError(t *testing.T) {
 	})
 }
 
+// A failed or stopped update over a damaged catalog says it is still damaged (SPEC 4 Update catalog), not that it
+// stays or that there is none.
+func TestUpdateDamagedStaysDamaged(t *testing.T) {
+	damaged := func(fb *fakeBackend) {
+		fb.cat, fb.catErr = nil, fmt.Errorf("%w: config.json no longer matches what was saved", catalog.ErrDamaged)
+		fb.updateErr = &catalog.FetchError{URL: "https://flasher.meshcore.io/config.json",
+			Err: fmt.Errorf("%w: dial tcp: lookup flasher.meshcore.io: no such host", catalog.ErrUnreachable)}
+	}
+	d, _ := updateAt(t, 45, 10, damaged)
+	bodyHas(d, "The saved catalog is still damaged.", "No network, or the server didn't answer.")
+	bodyLacks(d, "The saved catalog stays.", "No catalog is saved yet.")
+
+	fb := screensBackend(t, heltecV4Port("ttyACM0"))
+	damaged(fb)
+	d = newDriver(t, 45, 10, fb)
+	d.hold(true)
+	d.keys("u", "esc")
+	if d.m.screen != scrBoard {
+		t.Fatalf("Esc while fetching: screen %d", d.m.screen)
+	}
+	// The note wraps: compare the words.
+	if v := strings.Join(strings.Fields(d.view()), " "); !strings.Contains(v,
+		"Update stopped. The saved catalog is still damaged.") {
+		t.Errorf("the Board after Esc:\n%s", d.view())
+	}
+	d.releaseAll()
+}
+
 // "Fetching…" goes when the answer comes, with no key (S16), and Help closes as it does at a Job's end.
 func TestUpdateMessagesKeepUp(t *testing.T) {
 	fb := screensBackend(t, heltecV4Port("ttyACM0"))
@@ -91,6 +120,9 @@ func TestUpdateKeys(t *testing.T) {
 	d.keys("u", "esc")
 	if d.m.screen != scrBoard || d.m.upd.fetching {
 		t.Fatalf("esc while fetching: screen %d", d.m.screen)
+	}
+	if d.m.note != "Update stopped. The saved catalog stays." {
+		t.Errorf("esc while fetching says %q", d.m.note)
 	}
 	d.releaseAll()
 	if d.m.cat != before || d.m.screen != scrBoard {
@@ -129,3 +161,14 @@ func TestUpdateFromNoCatalog(t *testing.T) {
 
 // errNetworkDown is UpdateCatalog with no network.
 var errNetworkDown = &catalog.FetchError{URL: "https://flasher.meshcore.io/config.json", Err: catalog.ErrUnreachable}
+
+// With no catalog saved, a failed update never says a saved one stays: the Board and Update catalog agree.
+func TestUpdateFailsWithNoCatalog(t *testing.T) {
+	fb := screensBackend(t)
+	fb.cat, fb.updateErr = nil, errNetworkDown
+	d := newDriver(t, 45, 10, fb)
+	bodyHas(d, "No catalog saved.")
+	d.keys("u")
+	bodyHas(d, "No catalog is saved yet.", "No network")
+	bodyLacks(d, "The saved catalog stays.")
+}

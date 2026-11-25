@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -210,6 +209,10 @@ func TestE2ESetupUnplugged(t *testing.T) {
 	if d.m.setup.mode != setupFailed || o.State == "" || !o.Retry {
 		t.Fatalf("unplugged mid-setup: mode %d, %+v", d.m.setup.mode, o)
 	}
+	// The backend is Outcome.Log's one writer: the line is in screen.log once, Setup's end adding no copy.
+	if n := strings.Count(d.logText(), o.Log); o.Log == "" || n != 1 {
+		t.Errorf("screen.log has the Outcome's Log %q %d times:\n%s", o.Log, n, d.logText())
+	}
 	for _, l := range lines(d.view()) {
 		if width(l) > 45 {
 			t.Errorf("a line is too wide: %q", l)
@@ -275,29 +278,10 @@ func TestE2ESetupCtrlCQuits(t *testing.T) {
 	setupPreset(d, 1) // Australia (Narrow), not the radio the node runs
 	setupType(d, setupAdmin, setupTestAdmin)
 
-	// The setup is held, on the world's ticker, just after the node has answered set radio: between that command
-	// and the next, where Ctrl+C meets it. (The ticker runs while the backend waits the gap before each command.)
-	paused, resume := make(chan struct{}), make(chan struct{})
-	var once sync.Once
-	for i := 1; i <= 600; i++ {
-		world.At(time.Duration(i)*50*time.Millisecond, func() {
-			n := board.Node()
-			if n == nil {
-				return
-			}
-			cmds := n.Commands()
-			if len(cmds) == 0 || !strings.HasPrefix(cmds[len(cmds)-1], "set radio ") {
-				return
-			}
-			once.Do(func() {
-				close(paused)
-				select {
-				case <-resume:
-				case <-time.After(cmdGuard): // a guard against a deadlock, never waited out by a passing test
-				}
-			})
-		})
-	}
+	// The setup is held just after the node has answered set radio, in the backend's gap before its next command,
+	// where Ctrl+C meets it: an event of the fake world, in virtual time (cmdGuard only guards against a deadlock).
+	paused, resume := board.PauseAfter("set radio ")
+	defer resume()
 	d.advance(time.Second)
 	d.keys("y")
 	select {
@@ -305,14 +289,14 @@ func TestE2ESetupCtrlCQuits(t *testing.T) {
 	case <-time.After(cmdGuard):
 		t.Fatal("the setup never reached set radio")
 	}
+	handled := len(board.Node().Commands())
 	d.keys("ctrl+c")
 	if !d.quit || d.m.confirm != noConfirm {
-		close(resume)
 		t.Fatalf("Ctrl+C while setting up asked (%d) instead of quitting", d.m.confirm)
 	}
 	// internal/app after Run: Shutdown, then the Job's end, its Outcome in screen.log and its radio saved.
 	j := d.m.Shutdown()
-	close(resume)
+	resume()
 	if j == nil {
 		t.Fatal("Shutdown gave no Job to wait for")
 	}
@@ -340,6 +324,13 @@ func TestE2ESetupCtrlCQuits(t *testing.T) {
 	n := board.Node()
 	if n == nil {
 		t.Fatal("the board runs no console after the stopped setup")
+	}
+	// Stopped between two commands: nothing reached the node after the Ctrl+C (not set tx, the next one).
+	if cmds := n.Commands(); len(cmds) != handled {
+		t.Errorf("%d commands reached the node after Ctrl+C", len(cmds)-handled)
+	}
+	if o.Sent.TxDBm != n.TxPower {
+		t.Errorf("TX power recorded %d, the node has %d", o.Sent.TxDBm, n.TxPower)
 	}
 	want := nodecli.Radio{FreqMHz: 916.575, BWkHz: 62.5, SF: 7, CR: 7}
 	if !n.Radio.Near(want) || !n.ActiveRadio.Near(old) || n.Reboots() != 0 {

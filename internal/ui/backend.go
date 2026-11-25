@@ -52,17 +52,20 @@ type Backend interface {
 	Battery() (percent int, ok bool)
 	// ClockSynced says the Zero's clock is synchronised, so setup sets the node's.
 	ClockSynced() bool
-	// MessengerRadio is the messenger's radio settings, and a note when its file was skipped.
+	// MessengerRadio is the messenger's radio settings, to be used when they are Found, and a note for the form when
+	// its file was skipped ("" when it was used, and when no file is read at all).
 	MessengerRadio() (nodecli.MessengerRadio, string)
 }
 
 // Store is what the screens remember: *store.Store. Its calls are small local file writes, made from Update.
+// RememberBoard takes a board's flash.Port.Key (its USB serial in one form, never ""); the drafts take its
+// flash.Port.DraftKey (that serial, or its USB socket and identity for a board without a useful one).
 type Store interface {
 	RememberBoard(serial, device string) error
 	SaveRadio(r store.Radio) error
-	LoadDraft(serial string) (store.Draft, bool)
-	SaveDraft(serial string, d store.Draft) error
-	DeleteDraft(serial string) error
+	LoadDraft(key string) (store.Draft, bool)
+	SaveDraft(key string, d store.Draft) error
+	DeleteDraft(key string) error
 }
 
 // Options start the program.

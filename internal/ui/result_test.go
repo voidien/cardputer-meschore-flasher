@@ -138,10 +138,35 @@ func TestResultScrolls(t *testing.T) {
 		d, _ := resultAt(t, w, h, xiaoFlow(t, false), o)
 		d.keys("j")
 		d.check(w, h)
-		if w <= 45 && d.m.res.top == 0 {
+		if w <= 45 && d.m.res.scroll.top == 0 {
 			t.Error("j didn't scroll")
 		}
 		bodyHas(d, "Its app is erased.")
+	})
+}
+
+// A Summary sentence too long for what the pinned part leaves (45×10: an unplugged ESP32's State and Recovery) is
+// never cut to its first lines running into the State: the generic retry line moves to scroll after the Summary,
+// so the first sentence shows whole, and j brings the retry line into view.
+func TestResultFirstSentenceWhole(t *testing.T) {
+	o := flash.Outcome{Title: "Flashing stopped", Retry: true,
+		Summary: []string{"The board went away while writing (212 of 361 KB) at 0x10000, after the erase of that " +
+			"region."},
+		State:    "Partially written: the board has no working firmware.",
+		Recovery: "Plug it back in, hold BOOT, press RESET and release BOOT, then press r."}
+	eachSize(t, func(t *testing.T, w, h int) {
+		d, _ := resultAt(t, w, h, xiaoFlow(t, false), o)
+		v := d.view()
+		for _, l := range wrap(o.Summary[0], w) {
+			if !strings.Contains(v, l) {
+				t.Errorf("the Summary's line %q isn't on screen:\n%s", l, v)
+			}
+		}
+		bodyHas(d, "Partially written")
+		for range 4 {
+			d.keys("j")
+		}
+		bodyHas(d, "Press r to try again")
 	})
 }
 

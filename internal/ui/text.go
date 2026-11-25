@@ -1,9 +1,11 @@
 package ui
 
 // From the CardputerZero app kit, code/internal/ui/text.go (the owner's own code; THIRD_PARTY_NOTICES): the kit's
-// wrapping, cutting and wording helpers, unchanged but for proseLines (left out: release notes aren't prose) and the
+// wrapping, cutting and wording helpers, unchanged but for proseLines (left out: release notes aren't prose), the
 // helpers added at the end for meshflash (indented and scrolled from the kit's table.go and tabletop.go, heading,
-// byteSize, took, day).
+// byteSize, took, day), and wrapLine breaking a word too wide for the line after a "-", "_" or "/" where it can
+// (breakWord): meshflash's words include firmware file names of 40 to 80 characters
+// ("heltec_v4_repeater-v1.18.0-81dbae5-merged.bin"), which the kit's prose never has.
 //
 // Phase 2 contract (docs/phase2-design.md): this file is fixed (the integrator's). Builders C and D both use these;
 // a builder's own helpers go in their own files (builder D's named setup…, preset… or pick…).
@@ -53,8 +55,8 @@ func fitHint(w int, hints ...string) string {
 	return hints[len(hints)-1]
 }
 
-// wrap breaks plain text into lines of at most w cells: words stay whole where they fit, longer ones are broken.
-// Each line of the input starts a new line.
+// wrap breaks plain text into lines of at most w cells: words stay whole where they fit, longer ones are broken,
+// after a "-", "_" or "/" where one falls in the line (breakWord). Each line of the input starts a new line.
 func wrap(s string, w int) []string {
 	if w < 1 {
 		w = 1
@@ -82,7 +84,7 @@ func wrapLine(s string, w int) []string {
 				cur.Reset()
 				curW = 0
 			}
-			head, rest := cutWidth(word, w)
+			head, rest := breakWord(word, w)
 			lines = append(lines, head)
 			word, ww = rest, cells(rest)
 		}
@@ -116,6 +118,20 @@ func cells(s string) int {
 		}
 	}
 	return len(s)
+}
+
+// breakWord splits a word too wide for w cells: after the last "-", "_" or "/" in its first w cells, so a file
+// name breaks between its parts ("heltec_v4_repeater-v1.18.0-81dbae5-" / "merged.bin"), else after w cells; a
+// separator in the line's first half is passed over, so no line holds only a stub.
+func breakWord(s string, w int) (string, string) {
+	head, rest := cutWidth(s, w)
+	if rest == "" {
+		return head, rest
+	}
+	if i := strings.LastIndexAny(head, "-_/"); i > 0 && cells(head[:i+1])*2 >= cells(head) {
+		return s[:i+1], s[i+1:]
+	}
+	return head, rest
 }
 
 // cutWidth splits s after at most w cells (at least one rune).

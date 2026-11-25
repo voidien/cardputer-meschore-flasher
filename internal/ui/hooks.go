@@ -41,10 +41,11 @@ package ui
 //     (the frame's own tests, lock_test.go and quit_test.go, watch Jobs from the Board screen); likewise
 //     screenConfirmText and setupConfirmText only ever word their own questions.
 //   - m.note is one short sentence; longer words go in the screen's body.
-//   - Builder D reads m.backend, m.store, m.cat, m.cfg, m.job, m.jobSeenAt, m.scan, m.name, and may write m.note,
-//     m.busy (incremented while ReadNode runs, decremented when its answer comes) and m.cfg.Radio (after a setup
-//     sent a radio). Builder D never changes m.screen except through toBoard, and never reads or writes builder C's
-//     screen fields or m.flow. Builder C never reads or writes m.setup.
+//   - Builder D reads m.backend, m.store, m.cat, m.cfg, m.job, m.jobSeenAt, m.scan, m.name and m.yHeld (the held-y
+//     rule above, for Setup's y), and may write m.note, m.busy (incremented while ReadNode runs, decremented when its
+//     answer comes) and m.cfg.Radio (after a setup sent a radio). Builder D sets m.screen only in openSetup (to
+//     scrSetup) and otherwise changes it only through toBoard, and never reads or writes builder C's screen fields
+//     or m.flow. Builder C never reads or writes m.setup.
 //   - Every top-level name builder D declares, in code or tests (types, message types, funcs, vars, consts, test
 //     helpers), starts with setup, preset or pick (or Setup, Preset, Pick in test names, plus TestEditor… and
 //     TestNoGoldenHoldsThePassword); builder C never uses those prefixes. Nobody declares a name starting with frame

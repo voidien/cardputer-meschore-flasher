@@ -423,3 +423,21 @@ func TestRememberBoard(t *testing.T) {
 		t.Errorf("a board without a useful serial was remembered: %v", d.m.cfg.Boards)
 	}
 }
+
+// listed follows the backend's rule: another board of the same model, plugged into the same socket and given the
+// same tty, is not the board picked when their serial numbers differ (its ● would claim a board the backend says
+// isn't plugged in); a bridge with no useful serial is followed by its tty and socket.
+func TestListedNeedsTheSameSerial(t *testing.T) {
+	a := xiaoPort("ttyACM0")
+	b := a
+	b.Serial, b.Key = "0123456789ABCDEF", "0123456789ABCDEF"
+	d := newDriver(t, 45, 10, screensBackend(t, b))
+	if d.m.listed(a) || !d.m.listed(b) {
+		t.Errorf("listed(the board picked) %v, listed(the one plugged in) %v", d.m.listed(a), d.m.listed(b))
+	}
+	bridge := cp2102Port("ttyUSB0")
+	d2 := newDriver(t, 45, 10, screensBackend(t, bridge))
+	if !d2.m.listed(bridge) {
+		t.Error("a bridge with no useful serial isn't followed by its tty and socket")
+	}
+}

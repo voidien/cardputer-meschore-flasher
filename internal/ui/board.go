@@ -33,6 +33,9 @@ type boardScreen struct {
 	// opened says a probe has opened a port, so the scan's dialout hint is no longer only a guess (S16: the block
 	// goes once a port opens).
 	opened bool
+	// noteFor is the port whose probe state the note s gave (noteText) is about: once that state changes (its
+	// answer comes, or the port goes) the note no longer says what is true and goes (S16).
+	noteFor, noteText string
 }
 
 // probedMsg is a probe's answer for the port with key, from the probe numbered gen (an answer for a probe since
@@ -122,13 +125,37 @@ func (m *Model) boardSetup() tea.Cmd {
 		return nil
 	}
 	if n, ok := m.board.nodes[portKey(p)]; !ok || n.Problem != flash.NoProblem {
-		m.note = "s sets up a repeater or room server; this board didn't answer as one."
+		m.note = m.boardSetupNote(p)
+		m.board.noteFor, m.board.noteText = portKey(p), m.note
 		return nil
 	}
 	m.cancelProbes()
 	// Its answer will be stale once the setup has changed it: ask it again when the Board shows next.
 	delete(m.board.nodes, portKey(p))
 	return m.openSetup(p, m.rememberedBoard(p), false)
+}
+
+// boardSetupNote says why s doesn't set up port p, by where its probe is: still being asked, or what it answered.
+func (m *Model) boardSetupNote(p flash.Port) string {
+	k := portKey(p)
+	n, ok := m.board.nodes[k]
+	switch {
+	case !ok && (m.board.probing == k || slices.Contains(m.board.queue, k)):
+		return "Wait: meshflash is still asking it what it runs."
+	case !ok:
+	case n.Problem == flash.NotSettable && n.Reason != "":
+		// The port's line says what it runs; this says only why s can't, in the backend's words (a sentence of its
+		// own, but "meshflash" keeps its small letter).
+		if strings.HasPrefix(n.Reason, "meshflash") {
+			return sentence(n.Reason)
+		}
+		return capital(sentence(n.Reason))
+	case n.Problem == flash.InBootloader:
+		return "It's in its bootloader: s sets up a running repeater or room server."
+	case n.Problem == flash.Busy:
+		return "Another program has this port open, so meshflash can't ask it."
+	}
+	return "s sets up a repeater or room server; this board didn't answer as one."
 }
 
 // rememberedBoard is the catalog board picked last time for this board's serial number (store.Config.Boards), ""
@@ -171,6 +198,9 @@ func (m *Model) syncProbes() tea.Cmd {
 		if _, ok := cur[k]; !ok {
 			delete(m.board.nodes, k)
 		}
+	}
+	if _, ok := cur[m.board.noteFor]; !ok {
+		m.dropBoardNote(m.board.noteFor)
 	}
 	m.board.queue = slices.DeleteFunc(m.board.queue, func(k string) bool { _, ok := cur[k]; return !ok })
 	if m.board.probing != "" {
@@ -247,6 +277,7 @@ func (m *Model) gotProbe(msg probedMsg) tea.Cmd {
 	for _, p := range m.scan.Ports {
 		cur[portKey(p)] = p
 	}
+	m.dropBoardNote(msg.key)
 	if _, ok := cur[msg.key]; ok && msg.node.Problem != flash.Gone {
 		if m.board.nodes == nil {
 			m.board.nodes = map[string]flash.Node{}
@@ -266,6 +297,17 @@ func (m *Model) gotProbe(msg probedMsg) tea.Cmd {
 		return nil
 	}
 	return m.nextProbe(cur)
+}
+
+// dropBoardNote drops the note s gave about the port with key k, once its probe state has changed: its words were
+// about the state before.
+func (m *Model) dropBoardNote(k string) {
+	if k != "" && m.board.noteFor == k {
+		if m.screen == scrBoard && m.note == m.board.noteText {
+			m.note = ""
+		}
+		m.board.noteFor, m.board.noteText = "", ""
+	}
 }
 
 // probeState is what the Board and Choose board say of a port's probe: under way, waiting, or its answer.

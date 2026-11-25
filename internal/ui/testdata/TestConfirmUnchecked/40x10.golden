@@ -1,8 +1,8 @@
 Flash this?                            ●
-Seeed Studio Wio Tracker L1 EINK on
-ttyACM0
+Seeed Studio Wio Tracker L1 EINK
 Companion · Bluetooth v1.18.0 · 361 KB ·
 update
+File saved 24 Nov, SHA-256 97539d20… ✓
 The catalog doesn't say which SoftDevice
 this board has: if the file needs
 another, the bootloader refuses it and

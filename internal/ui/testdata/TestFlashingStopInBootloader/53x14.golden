@@ -1,0 +1,14 @@
+Flashing Repeater v1.18.0                           …
+Seeed Studio Xiao nRF52 WIO on ttyACM0
+▸ Into the bootloader (1200-baud touch) (0:02)
+
+Don't unplug the board.
+
+
+
+
+
+
+Stop now? Nothing is written yet; the board stays in
+its bootloader until reset.
+y yes  any other key no

@@ -90,6 +90,41 @@ func TestFlashingStopBeforeWrite(t *testing.T) {
 	})
 }
 
+// After the 1200-baud touch, waiting for the bootloader: the longest of the stop questions, at every size.
+func TestFlashingStopInBootloader(t *testing.T) {
+	eachSize(t, func(t *testing.T, w, h int) {
+		d, _, _ := flashingAt(t, w, h, xiaoFlow(t, false), pictureOf(flash.RiskBootloader,
+			stepNow("Into the bootloader (1200-baud touch)", 2*time.Second)))
+		d.keys("esc")
+		d.check(w, h)
+	})
+}
+
+// Esc and Ctrl+C word their question by the latest picture's Risk (design 9.8), every Risk a flash can be at: the
+// goldens show two, this pins all four, and that n to either stops nothing.
+func TestFlashingStopWords(t *testing.T) {
+	for risk, want := range map[flash.Risk]string{
+		flash.RiskNone:       "Stop now? Nothing has been written yet: the board keeps its firmware",
+		flash.RiskErased:     "Stop now? The board will have no working firmware until it's flashed again",
+		flash.RiskWritten:    "Stop now? It's already written; meshflash just won't check it",
+		flash.RiskBootloader: "Stop now? Nothing is written yet; the board stays in its bootloader until reset",
+	} {
+		d, _, cancels := flashingAt(t, 45, 10, xiaoFlow(t, false), pictureOf(risk, stepNow("Writing", time.Second)))
+		d.keys("esc")
+		if got := d.m.confirmText(); d.m.confirm != confirmStop || got != want+"." {
+			t.Errorf("Risk %d, Esc: question %v %q, want %q", risk, d.m.confirm, got, want+".")
+		}
+		d.keys("n", "ctrl+c")
+		if got := d.m.confirmText(); d.m.confirm != confirmQuit || got != want+", and meshflash quits." {
+			t.Errorf("Risk %d, Ctrl+C: question %v %q, want %q", risk, d.m.confirm, got, want+", and meshflash quits.")
+		}
+		d.keys("n")
+		if *cancels != 0 || d.quit || d.m.screen != scrFlashing {
+			t.Errorf("Risk %d: n stopped the flash (%d cancels, quit %v, screen %d)", risk, *cancels, d.quit, d.m.screen)
+		}
+	}
+}
+
 // y to "Stop now?": Stopping…, the step's note saying how long, no more keys but Help.
 func TestFlashingStopping(t *testing.T) {
 	eachSize(t, func(t *testing.T, w, h int) {
@@ -98,7 +133,7 @@ func TestFlashingStopping(t *testing.T) {
 		d, j, cancels := flashingAt(t, w, h, xiaoFlow(t, false), pictureOf(flash.RiskErased,
 			stepDone("Into the bootloader (1200-baud touch)", time.Second), erasing))
 		d.keys("esc", "y")
-		erasing.Note = "Stopping once the erase ends (about 8 s)"
+		erasing.Note = "Stopping once the erase ends" // no count of seconds: the step's clock shows how long
 		j.Set(pictureOf(flash.RiskErased, stepDone("Into the bootloader (1200-baud touch)", time.Second), erasing))
 		d.settle()
 		d.check(w, h)
@@ -120,10 +155,11 @@ func TestFlashingQuitAsks(t *testing.T) {
 	})
 }
 
-// A retry's eight steps at 40×10: the oldest fold into "✓ n earlier steps", the running one stays in view.
+// A retry's steps, as the backend sends them, at 40×10: the oldest fold into "✓ n earlier steps", the running one
+// (asking the version just written, a step named for what it does until it knows) stays in view.
 func TestFlashingNRF52Retry(t *testing.T) {
 	eachSize(t, func(t *testing.T, w, h int) {
-		written := stepDone("Writing", 42*time.Second)
+		written := stepDone("Written", 42*time.Second)
 		written.Total = 361_000
 		d, _, _ := flashingAt(t, w, h, xiaoFlow(t, false), pictureOf(flash.RiskWritten,
 			stepDone("Press the board's reset button twice quickly", 6*time.Second),
@@ -131,9 +167,7 @@ func TestFlashingNRF52Retry(t *testing.T) {
 			written,
 			stepDone("The board checked the CRC", 0),
 			stepDone("Back on USB (ttyACM0)", 2*time.Second),
-			stepDone("Running v1.18.0", 0),
-			stepDone("Back to 115200 baud", 0),
-			stepNow("Checking it answers as a repeater", 3*time.Second)))
+			stepNow("Asking its version", 3*time.Second)))
 		d.check(w, h)
 	})
 }

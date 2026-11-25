@@ -223,6 +223,10 @@ func TestE2EUnplugMidFlash(t *testing.T) {
 			if o.OK || o.State == "" || o.Recovery == "" {
 				t.Errorf("Outcome %+v", o)
 			}
+			// The backend is Outcome.Log's one writer: the line is in screen.log once, the screens adding no copy.
+			if n := strings.Count(d.logText(), o.Log); o.Log == "" || n != 1 {
+				t.Errorf("screen.log has the Outcome's Log %q %d times:\n%s", o.Log, n, d.logText())
+			}
 			d.advance(time.Second) // a scan: the board is gone
 			if !strings.HasSuffix(titleOf(d), "○") {
 				t.Errorf("the mark is %q with the board unplugged", titleOf(d))
