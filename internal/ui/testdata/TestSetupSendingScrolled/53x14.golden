@@ -1,0 +1,14 @@
+Setting up repeater v1.18.0                         …
+Heltec v4 on ttyACM0
+✓ 5 earlier steps
+✓ Latitude: 51.5074
+✓ Longitude: -0.1278
+✓ Local advert: off
+✓ Admin password: ••••
+✓ Check name
+✓ Check radio
+✓ Check TX power
+✓ Check path hash
+▸ Check latitude (0:02)
+Don't unplug the board.
+esc stop  ? help

@@ -1,0 +1,10 @@
+Setting up repeater v1.18.0            …
+Heltec v4 on ttyACM0
+✓ Clock: set to the Zero's time
+✓ Name: Hilltop 2
+✓ Radio: 869.618 MHz, 62.5 kHz, SF8, CR8
+✓ TX power: 22 dBm
+▸ Path hash: 1 bytes (0:02)
+Don't unplug the board.
+
+esc stop  ? help

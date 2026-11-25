@@ -1,0 +1,14 @@
+Help                                                ●
+Keys
+tab, j, k      move between the rows (shift+tab goes
+               back)
+enter          edit the row: a text box, or a list to
+               pick from
+p              radio presets: they fill the four
+               radio rows and the path hash
+y              send it all to the node, check it, and
+               restart the node
+esc            back to the boards (keeps what you
+               typed)
+In a text box:
+j/k scroll  space page  any other key back

@@ -1,0 +1,10 @@
+Setup stopped                          ●
+Check name: the node has "Hill" stored,
+not "Hilltop 2".
+Every setting was sent to the node; run
+setup again to check them. It keeps its
+old radio until it restarts.
+Press r to go back to the form and send
+it again (type the password again).
+
+r retry  esc back  ? help

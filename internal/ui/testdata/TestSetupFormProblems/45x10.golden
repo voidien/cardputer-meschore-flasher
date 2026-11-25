@@ -1,0 +1,10 @@
+Set up repeater v1.18.0                     ●
+▸ Name             Hill/top
+    Can't contain "/": MeshCore refuses [ ] /
+    \ : , ? * in names. Remove it.
+  Frequency        100 MHz
+    The frequency must be 150 to 2500 MHz.
+  Bandwidth        62.5 kHz
+  Spreading factor 8
+  Coding rate      4/8
+enter edit  p presets  y send  ? help

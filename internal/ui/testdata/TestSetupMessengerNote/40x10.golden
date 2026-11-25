@@ -1,0 +1,10 @@
+Set up repeater v1.18.0                ●
+Your messenger's radio settings weren't
+used:
+/home/void/.config/mesh/config.json
+isn't valid JSON, or its radio values
+aren't numbers.
+▸ Name             Hilltop 2
+  Frequency        869.618 MHz
+  Bandwidth        62.5 kHz
+enter edit  p presets  y send  ? help

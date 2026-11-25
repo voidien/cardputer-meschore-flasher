@@ -1,0 +1,10 @@
+Setting up repeater v1.18.0                 …
+Heltec v4 on ttyACM0
+✓ 9 earlier steps
+✓ Check name
+✓ Check radio
+✓ Check TX power
+✓ Check path hash
+▸ Check latitude (0:02)
+Don't unplug the board.
+esc stop  ? help

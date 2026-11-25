@@ -1,0 +1,10 @@
+Set up repeater v1.18.0                     ●
+The Zero's clock isn't synchronised: the
+node's clock won't be set.
+▸ Name             Hilltop 2
+  Frequency        869.618 MHz
+  Bandwidth        62.5 kHz
+  Spreading factor 8
+  Coding rate      4/8
+  TX power         22 dBm
+enter edit  p presets  y send  ? help

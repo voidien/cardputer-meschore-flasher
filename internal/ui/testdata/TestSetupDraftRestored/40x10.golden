@@ -1,0 +1,10 @@
+Set up repeater v1.18.0                ●
+▸ Name             Hilltop East
+  Frequency        869.52 MHz
+  Bandwidth        62.5 kHz
+  Spreading factor 8
+  Coding rate      4/8
+  TX power         22 dBm
+  Path hash        1 byte
+Restored what was typed for this board.
+enter edit  p presets  y send  ? help

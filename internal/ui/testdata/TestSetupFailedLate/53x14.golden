@@ -1,0 +1,14 @@
+Setup stopped                                       ○
+Name, radio, TX power, path hash, location, local
+advert and admin password sent and read back.
+Reboot to start the new radio: sent.
+The board didn't come back on USB within 15 s.
+Every setting was sent, saved and checked; the node
+may not have restarted.
+Press its reset button once, then press s on the
+Board to check it.
+Press r to go back to the form and send it again
+(type the password again).
+
+
+r retry  esc back  ? help

@@ -1,0 +1,10 @@
+Set up repeater v1.18.0                ●
+▸ Name             Hilltop Room
+  Frequency        869.618 MHz
+  Bandwidth        62.5 kHz
+  Spreading factor 8
+  Coding rate      4/8
+  TX power         20 dBm
+Restored what was typed for this board
+as a room server.
+enter edit  p presets  y send  ? help

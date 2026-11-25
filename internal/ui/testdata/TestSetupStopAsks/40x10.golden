@@ -1,0 +1,10 @@
+Setting up repeater v1.18.0            …
+Heltec v4 on ttyACM0
+✓ 3 earlier steps
+✓ TX power: 22 dBm
+▸ Path hash: 1 bytes (0:02)
+Don't unplug the board.
+Stop now? The node keeps what it was
+sent so far, and switches to the new
+radio when it restarts.
+y yes  any other key no
