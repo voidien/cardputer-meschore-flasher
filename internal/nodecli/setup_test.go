@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -227,6 +228,13 @@ func TestPlanCommands(t *testing.T) {
 	if strings.Join(shown, "\n") != strings.Join(wantShown, "\n") {
 		t.Errorf("displays:\n%s", strings.Join(shown, "\n"))
 	}
+	// One byte of path hash is "1 byte".
+	one := s
+	one.PathHashBytes = 1
+	steps, _ = Plan(one, Info{Version: v, Role: RoleRoomServer})
+	if !slices.ContainsFunc(steps, func(st Step) bool { return st.Display == "Path hash: 1 byte" }) {
+		t.Errorf("a 1-byte path hash isn't shown as \"Path hash: 1 byte\": %v", steps)
+	}
 	// Without a synchronised clock the step says it was skipped, and sends nothing.
 	s.ClockSynced = false
 	steps, _ = Plan(s, Info{Version: v, Role: RoleRoomServer})
@@ -294,8 +302,8 @@ func TestCheckRefusals(t *testing.T) {
 		{"Ikoka unknown module", rep, func(s *Settings) { s.TxDBm = 10; s.Device = "Ikoka Stick"; s.Name = "x" }, "TX power", "Choose 9 or less"},
 		{"Heltec V4 at 23", Info{Version: v1180, Role: RoleRepeater, Board: "Heltec V4 OLED"}, func(s *Settings) { s.TxDBm = 23 }, "TX power", "Heltec V4"},
 		{"path hash 4", rep, func(s *Settings) { s.PathHashBytes = 4 }, "Path hash", "1, 2 or 3"},
-		{"latitude 91", rep, func(s *Settings) { s.Lat = f64(91) }, "Latitude", "−90 to 90"},
-		{"longitude -181", rep, func(s *Settings) { s.Lon = f64(-181) }, "Longitude", "−180 to 180"},
+		{"latitude 91", rep, func(s *Settings) { s.Lat = f64(91) }, "Latitude", "must be -90 to 90 degrees."},
+		{"longitude -181", rep, func(s *Settings) { s.Lon = f64(-181) }, "Longitude", "must be -180 to 180 degrees."},
 		{"advert 30", rep, func(s *Settings) { s.AdvertInterval = iptr(30) }, "Local advert", "60 to 240"},
 		{"advert 250", rep, func(s *Settings) { s.AdvertInterval = iptr(250) }, "Local advert", "60 to 240"},
 		{"advert 75", rep, func(s *Settings) { s.AdvertInterval = iptr(75) }, "Local advert", "74 or 76"},
@@ -315,6 +323,13 @@ func TestCheckRefusals(t *testing.T) {
 		}
 		if strings.Contains(p.Error(), adminPW) || strings.Contains(p.Error(), guestPW) {
 			t.Errorf("%s: the problem quotes a password: %v", c.name, p)
+		}
+		// The setup form shows the problem as it is, and the device's font is checked only for S15's glyphs, so a
+		// problem holds no rune beyond ASCII but a curly quote (no U+2212 minus).
+		for _, r := range p[0].Problem {
+			if r > 0x7f && !strings.ContainsRune("“”‘’", r) {
+				t.Errorf("%s: the problem %q holds %q", c.name, p[0].Problem, r)
+			}
 		}
 		// Plan refuses the same settings with the same problems, sending nothing.
 		if _, err := Plan(s, c.info); !errors.As(err, new(Problems)) {

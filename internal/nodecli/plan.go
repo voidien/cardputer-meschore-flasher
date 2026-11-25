@@ -152,7 +152,7 @@ func Plan(s Settings, info Info) ([]Step, error) {
 	mode := strconv.Itoa(s.PathHashBytes - 1)
 	switch {
 	case pathHash:
-		add(Step{Command: "set path.hash.mode " + mode, Expect: exact("OK"), Display: fmt.Sprintf("Path hash: %d bytes", s.PathHashBytes)})
+		add(Step{Command: "set path.hash.mode " + mode, Expect: exact("OK"), Display: "Path hash: " + byteCount(s.PathHashBytes)})
 	case s.PathHashBytes != 0:
 		// Older firmware would answer "unknown config: …" (7.5).
 		skip("Path hash: not set (needs v1.14.0 or newer)")
@@ -262,6 +262,9 @@ type StepError struct {
 	// Err is ErrNoReply, ErrWrongReply, ErrMismatch, ErrTooLong, ErrBadCommand, a serialport error (ErrGone when
 	// the board went away) or the context's.
 	Err error
+	// Written says the step's command reached the node; with Maybe, that the node may have saved it (it changes a
+	// setting and wasn't refused, but its answer never came: a stop past StopGrace, no reply, the board gone).
+	Written, Maybe bool
 }
 
 // Error is the step and the reason: "Check name: the node has "Hill" stored, not "Hilltop 2"."
@@ -275,8 +278,14 @@ func (e *StepError) Unwrap() error { return e.Err }
 // saying what the node is left with (StepError.State). progress, if not nil,
 // hears each step as it is sent and when it is done. After the last step (reboot) the caller closes the port, waits
 // for the board to come back, reopens it, and calls Confirm.
+//
+// Stopping ctx stops it between commands: nothing more is written once ctx ends (not even after the gap before a
+// command), and a command already written still has its reply read, for StopGrace at most, so the node's answer
+// says whether it took it. The *StepError then names the step that wasn't sent, or the one whose answer never came
+// (Written, Maybe).
 func Run(ctx context.Context, port serialport.Port, clock serialport.Clock, steps []Step, progress func(Progress)) error {
 	c := newConn(ctx, port, clock)
+	c.settle = true
 	var secrets []string
 	for _, st := range steps {
 		if st.Expect.secret != "" {
@@ -294,6 +303,11 @@ func Run(ctx context.Context, port serialport.Port, clock serialport.Clock, step
 			report(i, Skipped, "")
 			continue
 		}
+		if err := c.ctx.Err(); err != nil {
+			// Stopped once the last step was answered: this one never starts.
+			return &StepError{Index: i, Display: st.Display, Reason: sendReason(err),
+				State: leftState(st, changed, radio, false), Err: err}
+		}
 		report(i, Sending, "")
 		writes := c.writes
 		note, reason, err := c.run(st, secrets)
@@ -301,8 +315,10 @@ func Run(ctx context.Context, port serialport.Port, clock serialport.Clock, step
 			report(i, Failed, reason)
 			// A setting that reached the node and wasn't refused may have been saved (the node saves before it
 			// answers), even when no answer came back.
-			maybe := c.writes > writes && st.changes() && !errors.Is(err, ErrWrongReply)
-			return &StepError{Index: i, Display: st.Display, Reason: reason, State: leftState(st, changed, radio, maybe), Err: err}
+			written := c.writes > writes
+			maybe := written && st.changes() && !errors.Is(err, ErrWrongReply)
+			return &StepError{Index: i, Display: st.Display, Reason: reason, State: leftState(st, changed, radio, maybe),
+				Err: err, Written: written, Maybe: maybe}
 		}
 		report(i, Done, note)
 		if st.changes() {
@@ -461,4 +477,12 @@ func (e Expect) check(reply string, secrets []string) (note, reason string, err 
 		return bad(strconv.FormatFloat(e.num, 'f', -1, 64))
 	}
 	return "", "", nil
+}
+
+// byteCount is n bytes in words for a step's Display: "1 byte", "2 bytes".
+func byteCount(n int) string {
+	if n == 1 {
+		return "1 byte"
+	}
+	return strconv.Itoa(n) + " bytes"
 }

@@ -21,6 +21,11 @@ type MessengerRadio struct {
 	HasTx bool
 }
 
+// Found says these settings came from a file that was used. ReadMessengerRadio gives the zero value whenever it
+// skips a file, and a file it uses always has a frequency (150–2500 MHz), so the note need not be read to tell "used"
+// from "skipped" or from "no file read at all".
+func (r MessengerRadio) Found() bool { return r.Radio.FreqMHz > 0 }
+
 // MessengerPath is where a messenger keeps its settings: ~/.config/mesh/config.json (or under $XDG_CONFIG_HOME).
 func MessengerPath() string {
 	dir, err := os.UserConfigDir()

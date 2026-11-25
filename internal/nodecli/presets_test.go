@@ -76,8 +76,11 @@ func TestReadMessengerRadio(t *testing.T) {
 	good := write("good.json", `{"name":"other app","radio":{"freq_mhz":869.618,"bw_khz":62.5,"sf":8,"cr":8,"tx_dbm":22,"extra":1},"keys":["…"]}`)
 	before, _ := os.Stat(good)
 	r, note := ReadMessengerRadio(good)
-	if note != "" || r.Radio != (Radio{869.618, 62.5, 8, 8}) || !r.HasTx || r.TxDBm != 22 {
+	if note != "" || r.Radio != (Radio{869.618, 62.5, 8, 8}) || !r.HasTx || r.TxDBm != 22 || !r.Found() {
 		t.Errorf("good file: %+v, %q", r, note)
+	}
+	if (MessengerRadio{}).Found() {
+		t.Error("the zero MessengerRadio says it was found")
 	}
 	after, _ := os.Stat(good)
 	if !after.ModTime().Equal(before.ModTime()) || after.Mode() != before.Mode() {
@@ -106,7 +109,7 @@ func TestReadMessengerRadio(t *testing.T) {
 			path = write(c.name, c.body)
 		}
 		r, note := ReadMessengerRadio(path)
-		if r != (MessengerRadio{}) || !strings.Contains(note, c.says) || !strings.HasPrefix(note, "Your messenger's radio settings weren't used: ") {
+		if r != (MessengerRadio{}) || r.Found() || !strings.Contains(note, c.says) || !strings.HasPrefix(note, "Your messenger's radio settings weren't used: ") {
 			t.Errorf("%s: %+v, %q", c.name, r, note)
 		}
 	}

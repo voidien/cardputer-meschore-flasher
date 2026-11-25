@@ -30,6 +30,11 @@ const (
 	pollEvery = 100 * time.Millisecond
 	// maxBuffer bounds what is kept while looking for a reply, against a node that never stops printing.
 	maxBuffer = 64 << 10
+	// StopGrace is how long Run still reads the reply to a command already written when it is stopped, so the stop
+	// lands between commands and Run knows whether the node took that one: a node answers in milliseconds, and the
+	// app gives a Job stopped by the end of the program 1.5 s (internal/app's shutdownWait). Past it, the step may
+	// have been saved (StepError.Written).
+	StopGrace = time.Second
 )
 
 // replyMark starts every reply line.
@@ -53,6 +58,9 @@ type conn struct {
 	buf    []byte
 	sent   bool // a command has been sent, so the next one waits commandGap first
 	writes int  // commands written, so Run knows whether a failed step reached the node
+	// settle says a stop waits for the reply to a command already written (Run only, up to StopGrace), so a setup
+	// stops between commands. Probe, ReadSettings and Confirm change nothing, and stop at once.
+	settle bool
 }
 
 func newConn(ctx context.Context, port serialport.Port, clock serialport.Clock) *conn {
@@ -77,7 +85,8 @@ func checkCommand(cmd string) error {
 }
 
 // send writes cmd and its CR in one write: the room server reads whatever has arrived as one line, so two commands
-// in one write would merge, and one command split across writes is harmless but pointless.
+// in one write would merge, and one command split across writes is harmless but pointless. A stop during the gap
+// before it writes nothing: the context is looked at again after the gap, just before the write.
 func (c *conn) send(cmd string) error {
 	if err := checkCommand(cmd); err != nil {
 		return err
@@ -87,6 +96,9 @@ func (c *conn) send(cmd string) error {
 	}
 	if c.sent {
 		c.clock.Sleep(commandGap)
+		if err := c.ctx.Err(); err != nil {
+			return err
+		}
 	}
 	c.sent = true
 	if _, err := c.port.Write([]byte(cmd + "\r")); err != nil {
@@ -96,9 +108,10 @@ func (c *conn) send(cmd string) error {
 	return nil
 }
 
-// fill waits for more bytes, at most until deadline and at most pollEvery. A quiet port is not an error.
+// fill waits for more bytes, at most until deadline and at most pollEvery. A quiet port is not an error. A stop
+// ends it at once, unless the conn settles (await then bounds the wait itself).
 func (c *conn) fill(deadline time.Time) error {
-	if err := c.ctx.Err(); err != nil {
+	if err := c.ctx.Err(); err != nil && !c.settle {
 		return err
 	}
 	wait := deadline.Sub(c.clock.Now())
@@ -161,15 +174,26 @@ func findReply(b []byte, cmd string) (reply string, used int, ok, echoed bool) {
 	return string(b[from : from+end]), from + end + 2, true, true
 }
 
-// await waits up to timeout for the reply to cmd, which has been sent.
+// await waits up to timeout for the reply to cmd, which has been sent. Stopped meanwhile, it returns the context's
+// error at once, or, when the conn settles, once the reply has come (StopGrace at most: then the context's error).
 func (c *conn) await(cmd string, timeout time.Duration) (string, error) {
 	deadline := c.clock.Now().Add(timeout)
+	stopping := false
 	for {
 		if reply, used, ok, _ := findReply(c.buf, cmd); ok {
 			c.buf = c.buf[used:]
 			return reply, nil
 		}
+		if err := c.ctx.Err(); err != nil && c.settle && !stopping {
+			stopping = true
+			if g := c.clock.Now().Add(StopGrace); g.Before(deadline) {
+				deadline = g
+			}
+		}
 		if !c.clock.Now().Before(deadline) {
+			if stopping {
+				return "", c.ctx.Err()
+			}
 			return "", ErrNoReply
 		}
 		if err := c.fill(deadline); err != nil {

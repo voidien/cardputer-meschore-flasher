@@ -78,7 +78,10 @@
 //     config tool sends each command once. An answer that isn't a version is asked again rather than taken as "not
 //     the CLI" at once: a stray byte in the node's line buffer turns the first `ver` into "xver" ("Unknown
 //     command"). The 100 ms gap between commands is the config tool's.
-//   - Run, Probe and Confirm take a context, so the owner can stop them between reads (at most 100 ms apart).
+//   - Run, Probe and Confirm take a context, so the owner can stop them between reads (at most 100 ms apart). Run
+//     stops only between commands: nothing is written once the context ends (it is looked at again after the gap
+//     before a command), and a command already written has its reply read for StopGrace (1 s) at most, so a stop
+//     never leaves meshflash unsure what the node took unless the node stops answering (StepError.Maybe).
 //
 // # UNVERIFIED
 //

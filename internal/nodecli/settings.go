@@ -351,7 +351,9 @@ func Check(s Settings, info Info) Problems {
 	}
 	checkDeg := func(field string, x *float64, lim float64) {
 		if x != nil && (math.IsNaN(*x) || math.IsInf(*x, 0) || *x < -lim || *x > lim) {
-			add(&FieldError{field, fmt.Sprintf("must be −%g to %g degrees.", lim, lim)})
+			// An ASCII hyphen, not U+2212: the problem is shown on the screens, whose font is checked only for
+			// S15's glyphs (screen.Glyphs).
+			add(&FieldError{field, fmt.Sprintf("must be -%g to %g degrees.", lim, lim)})
 		}
 	}
 	checkDeg("Latitude", s.Lat, 90)
