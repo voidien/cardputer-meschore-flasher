@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -34,7 +36,7 @@ func TestShutdownIsBounded(t *testing.T) {
 	m := &fakeModel{job: j}
 	asked := fakeWaits(t, nil, true)
 	log, mem := newLog()
-	finish(m, quit, &radioBook{}, log, "meshflash", io.Discard)
+	finish(m, quit, &radioBook{}, log, "meshflash", io.Discard, nil)
 	if !reflect.DeepEqual(*asked, []time.Duration{shutdownWait}) || m.shutdowns != 1 || cancels() != 1 {
 		t.Errorf("after a quit: waited %v, %d shutdowns, %d cancels; want one wait of %v, once each", *asked,
 			m.shutdowns, cancels(), shutdownWait)
@@ -50,7 +52,7 @@ func TestShutdownIsBounded(t *testing.T) {
 	asked = fakeWaits(t, nil, true, true)
 	log, mem = newLog()
 	var stderr bytes.Buffer
-	finish(m, ending{lost: true, why: "it crashed"}, &radioBook{}, log, "meshflash", &stderr)
+	finish(m, ending{lost: true, why: "it crashed"}, &radioBook{}, log, "meshflash", &stderr, nil)
 	if !reflect.DeepEqual(*asked, []time.Duration{lostWait, shutdownWait}) || m.shutdowns != 0 || cancels() != 1 {
 		t.Errorf("after a crash: waited %v, %d shutdowns, %d cancels; want %v and %v, no shutdown, one cancel",
 			*asked, m.shutdowns, cancels(), lostWait, shutdownWait)
@@ -71,7 +73,7 @@ func TestShutdownIsBounded(t *testing.T) {
 }
 
 // A setup cut off by a quit writes to screen.log how it ended: its Title, every Summary paragraph, the State it left
-// the node in and what to do, and never the password it was sent. A download stopped by a quit is waited for but
+// the node in and what to do (not its Log, which the backend wrote), and never the password it was sent. A download stopped by a quit is waited for but
 // leaves no lines: it changed no board.
 func TestShutdownLogsTheOutcome(t *testing.T) {
 	const password = "hunter2-is-secret"
@@ -87,18 +89,21 @@ func TestShutdownLogsTheOutcome(t *testing.T) {
 	j, _ := backendJob(flash.JobSetup, stopped)
 	asked := fakeWaits(t, nil)
 	log, mem := newLog()
-	finish(&fakeModel{job: j}, quit, &radioBook{}, log, "meshflash", io.Discard)
+	finish(&fakeModel{job: j}, quit, &radioBook{}, log, "meshflash", io.Discard, nil)
 	want := "meshflash: how the setup ended: Setup stopped\n" +
 		"meshflash:   Sent: the name “Hilltop 2”, the admin password ••••, the radio.\n" +
 		"meshflash:   Stopped before the reboot.\n" +
 		"meshflash:   Left with: Its new radio is saved but it hasn't restarted: still on its old radio until it does.\n" +
-		"meshflash:   What to do: Set it up again to finish, or restart it to switch.\n" +
-		"meshflash:   setup stopped after set radio (step 4 of 20)\n"
+		"meshflash:   What to do: Set it up again to finish, or restart it to switch.\n"
 	if mem.String() != want {
 		t.Errorf("screen.log:\n%s\nwant:\n%s", mem.String(), want)
 	}
 	if strings.Contains(mem.String(), password) {
 		t.Error("screen.log holds the admin password")
+	}
+	// Outcome.Log has one writer, the backend, which wrote it as the Job finished: finish never repeats it.
+	if strings.Contains(mem.String(), stopped.Log) {
+		t.Errorf("finish wrote Outcome.Log, which the backend already wrote:\n%s", mem.String())
 	}
 	if len(*asked) > 1 {
 		t.Errorf("waited %v for a Job that stopped", *asked)
@@ -107,14 +112,14 @@ func TestShutdownLogsTheOutcome(t *testing.T) {
 	j, cancels := backendJob(flash.JobDownload, flash.Outcome{Stopped: true, Title: "Download stopped"})
 	fakeWaits(t, nil)
 	log, mem = newLog()
-	finish(&fakeModel{job: j}, quit, &radioBook{}, log, "meshflash", io.Discard)
+	finish(&fakeModel{job: j}, quit, &radioBook{}, log, "meshflash", io.Discard, nil)
 	if mem.String() != "" || cancels() == 0 {
 		t.Errorf("a download stopped by a quit: %d cancels, screen.log %q", cancels(), mem.String())
 	}
 
 	log, mem = newLog()
 	m := &fakeModel{}
-	finish(m, quit, &radioBook{}, log, "meshflash", io.Discard)
+	finish(m, quit, &radioBook{}, log, "meshflash", io.Discard, nil)
 	if m.shutdowns != 1 || mem.String() != "" {
 		t.Errorf("nothing running: %d shutdowns, screen.log %q", m.shutdowns, mem.String())
 	}
@@ -135,7 +140,7 @@ func TestShutdownSavesSentRadio(t *testing.T) {
 		// does. The wait after a cancel never runs out: the Job ends first.
 		fakeWaits(t, nil, end.lost)
 		log, _ := newLog()
-		finish(&fakeModel{job: j}, end, book, log, "meshflash", io.Discard)
+		finish(&fakeModel{job: j}, end, book, log, "meshflash", io.Discard, nil)
 		if !reflect.DeepEqual(book.saved, want) {
 			t.Errorf("lost %v: saved %+v, want %+v", end.lost, book.saved, want)
 		}
@@ -161,7 +166,7 @@ func TestShutdownSavesSentRadio(t *testing.T) {
 		book := &radioBook{}
 		fakeWaits(t, nil, c.what == "a setup still stopping")
 		log, _ := newLog()
-		finish(&fakeModel{job: c.job()}, quit, book, log, "meshflash", io.Discard)
+		finish(&fakeModel{job: c.job()}, quit, book, log, "meshflash", io.Discard, nil)
 		if len(book.saved) != 0 {
 			t.Errorf("%s: saved %+v", c.what, book.saved)
 		}
@@ -170,7 +175,7 @@ func TestShutdownSavesSentRadio(t *testing.T) {
 	j, _ := backendJob(flash.JobSetup, flash.Outcome{Stopped: true, Sent: sent})
 	fakeWaits(t, nil)
 	log, mem := newLog()
-	finish(&fakeModel{job: j}, quit, &radioBook{err: errors.New("disk full")}, log, "meshflash", io.Discard)
+	finish(&fakeModel{job: j}, quit, &radioBook{err: errors.New("disk full")}, log, "meshflash", io.Discard, nil)
 	if !strings.Contains(mem.String(), "the node took its new radio, but it can't be remembered in config.json: "+
 		"disk full") {
 		t.Errorf("a radio that can't be saved isn't in screen.log: %q", mem.String())
@@ -191,7 +196,7 @@ func TestCrashLetsTheFlashFinish(t *testing.T) {
 		}
 	})
 	log, mem := newLog()
-	finish(m, ending{lost: true, why: "it crashed"}, &radioBook{}, log, "meshflash", io.Discard)
+	finish(m, ending{lost: true, why: "it crashed"}, &radioBook{}, log, "meshflash", io.Discard, nil)
 	if cancels() != 0 || m.shutdowns != 0 || m.unsents != 1 {
 		t.Errorf("%d cancels, %d shutdowns, %d saves of what was typed; want the flash left alone and one save",
 			cancels(), m.shutdowns, m.unsents)
@@ -213,9 +218,45 @@ func TestCrashLetsTheFlashFinish(t *testing.T) {
 	asked = fakeWaits(t, nil)
 	log, mem = newLog()
 	finish(&fakeModel{job: j}, ending{lost: true, why: "its terminal closed"}, &radioBook{}, log, "meshflash",
-		io.Discard)
+		io.Discard, nil)
 	if cancels() == 0 || len(*asked) > 1 || (len(*asked) == 1 && (*asked)[0] != shutdownWait) || mem.String() != "" {
 		t.Errorf("a download after a lost terminal: %d cancels, waited %v, screen.log %q; want it stopped at once",
 			cancels(), *asked, mem.String())
+	}
+}
+
+// A flash left to finish with no screen after a crash is stopped the safe way when a SIGTERM (the launcher's, after
+// an Esc hold) or a SIGINT (Ctrl+C in the CLI app's terminal, cooked again after the crash) arrives: within the
+// shutdown's wait, so screen.log gets how it ended before the launcher's SIGKILL.
+func TestCrashThenSignalStopsTheFlash(t *testing.T) {
+	for _, sig := range []os.Signal{syscall.SIGTERM, syscall.SIGINT} {
+		t.Run(signalName(sig), func(t *testing.T) {
+			stopped := flash.Outcome{Stopped: true, Title: "Flashing stopped", State: "Its app is erased.",
+				Recovery: "Press r; meshflash then asks you to press reset twice quickly."}
+			j, cancels := backendJob(flash.JobFlash, stopped)
+			asked := fakeWaits(t, nil)
+			stops := make(chan os.Signal, 1)
+			stops <- sig
+			log, mem := newLog()
+			finish(&fakeModel{job: j}, ending{lost: true, why: "it crashed"}, &radioBook{}, log, "meshflash",
+				io.Discard, stops)
+			if cancels() != 1 {
+				t.Errorf("%d cancels, want the flash stopped once", cancels())
+			}
+			// lostWait's timer, never fired; then the stop's wait, unless the Job had already ended by then.
+			if a := *asked; len(a) == 0 || a[0] != lostWait || len(a) > 2 || len(a) == 2 && a[1] != shutdownWait {
+				t.Errorf("waited %v, want %v then at most %v", a, lostWait, shutdownWait)
+			}
+			for _, w := range []string{
+				"meshflash: told to end (" + signalName(sig) + ") while the flash went on with no screen: stopping it " +
+					"the safe way\n",
+				"meshflash: how the flash ended: Flashing stopped\n",
+				"meshflash:   Left with: Its app is erased.\n",
+			} {
+				if !strings.Contains(mem.String(), w) {
+					t.Errorf("screen.log %q lacks %q", mem.String(), w)
+				}
+			}
+		})
 	}
 }

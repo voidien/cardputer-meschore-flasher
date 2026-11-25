@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"os"
+	"syscall"
 	"time"
 
 	"meshflash/internal/flash"
@@ -63,7 +65,10 @@ var (
 //
 // Either way a setup that ended with its radio taken by the node (Outcome.Sent) has the radio saved, as the screens
 // would have, had they seen the end: the node keeps it.
-func finish(m model, end ending, st radios, log *logWriter, name string, stderr io.Writer) {
+//
+// stops are the SIGTERMs and SIGINTs that arrive meanwhile (absorbSIGTERM; nil for none): with no screen left to
+// turn them into a quit, they stop a Job left to finish alone the safe way, at once.
+func finish(m model, end ending, st radios, log *logWriter, name string, stderr io.Writer, stops <-chan os.Signal) {
 	var j *flash.Job
 	if !end.lost {
 		guard(log, name, "stopping", func() { j = m.Shutdown() })
@@ -73,7 +78,7 @@ func finish(m model, end ending, st radios, log *logWriter, name string, stderr 
 	} else {
 		guard(log, name, "saving what was typed", m.SaveUnsent)
 		if j = m.Running(); j != nil {
-			finishAlone(j, end, log, name, stderr)
+			finishAlone(j, end, log, name, stderr, stops)
 		}
 	}
 	if j == nil {
@@ -84,8 +89,9 @@ func finish(m model, end ending, st radios, log *logWriter, name string, stderr 
 }
 
 // finishAlone lets a Job the screens can no longer show finish by itself, bounded: lostWait for a flash or a setup,
-// then stopped the safe way; a download is stopped at once.
-func finishAlone(j *flash.Job, end ending, log *logWriter, name string, stderr io.Writer) {
+// then stopped the safe way, or at once when a SIGTERM (the launcher's, at the end of an Esc hold) or a SIGINT
+// (Ctrl+C in the CLI app's cooked terminal) arrives on stops; a download is stopped at once.
+func finishAlone(j *flash.Job, end ending, log *logWriter, name string, stderr io.Writer, stops <-chan os.Signal) {
 	what, ok := jobWords[j.Kind()]
 	if !ok {
 		j.Cancel()
@@ -98,12 +104,28 @@ func finishAlone(j *flash.Job, end ending, log *logWriter, name string, stderr i
 	// Tea's account of the panic, and knows why meshflash hasn't ended yet.
 	fmt.Fprintf(stderr, "%s: the %s goes on with no screen; waiting up to %s for it to end (screen.log says how)\n",
 		name, what, minutes(lostWait))
-	if waitFor(j, lostWait) {
+	select {
+	case <-j.Done():
 		return
+	case sig := <-stops:
+		log.linef("%s: told to end (%s) while the %s went on with no screen: stopping it the safe way", name,
+			signalName(sig), what)
+	case <-timeAfter(lostWait):
+		log.linef("%s: the %s hadn't ended after %s: stopping it the safe way", name, what, minutes(lostWait))
 	}
-	log.linef("%s: the %s hadn't ended after %s: stopping it the safe way", name, what, minutes(lostWait))
 	j.Cancel()
 	waitFor(j, shutdownWait)
+}
+
+// signalName names a signal as screen.log does: "SIGTERM", "SIGINT".
+func signalName(sig os.Signal) string {
+	switch sig {
+	case syscall.SIGTERM:
+		return "SIGTERM"
+	case syscall.SIGINT:
+		return "SIGINT"
+	}
+	return fmt.Sprint(sig)
 }
 
 // jobWords name the Jobs whose end screen.log is told: a flash and a setup, which change a board. A download changes
@@ -122,8 +144,11 @@ func logEnd(j *flash.Job, log *logWriter, name string) {
 	p := j.Snapshot()
 	if !p.Done {
 		line := fmt.Sprintf("%s: the %s was still stopping when %s ended", name, what, name)
-		if p.Risk == flash.RiskErased {
+		switch p.Risk {
+		case flash.RiskErased:
 			line += ": its app is erased, so the board has no working firmware until it is flashed again"
+		case flash.RiskBootloader:
+			line += ": nothing was written, but it may be in its bootloader: press its reset button once to start it"
 		}
 		log.linef("%s.", line)
 		return
@@ -139,9 +164,8 @@ func logEnd(j *flash.Job, log *logWriter, name string) {
 	if o.Recovery != "" {
 		log.linef("%s:   What to do: %s", name, o.Recovery)
 	}
-	if o.Log != "" {
-		log.linef("%s:   %s", name, o.Log)
-	}
+	// Not o.Log: the backend wrote that line to screen.log itself as the Job finished (flash.Outcome.Log has one
+	// writer), so writing it here would put it there twice.
 }
 
 // saveSent remembers the radio a setup's node took (config.json, SPEC.md 8), when the Job has ended with one.

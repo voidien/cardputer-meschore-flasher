@@ -147,12 +147,15 @@ type frame struct {
 
 // draw shows each frame until frames is closed. The first dark one draws the screen black and turns the light off;
 // the next one that isn't draws its picture first and then turns the light on, so the old picture never shows. A
-// panic while drawing turns the light on and stops drawing, but not the program (a flash under way carries on).
+// panic while drawing turns the light on and stops drawing, but not the program (a flash under way carries on): the
+// last picture is replaced by drawStoppedText (drawStopped), since it would go on claiming whatever it showed, a
+// flash under way say, long after that has ended (S16).
 func draw(s *Screen, light Backlight, frames <-chan frame, log io.Writer) {
 	defer func() {
 		if r := recover(); r != nil {
 			light.On()
 			fmt.Fprintln(log, "screen: drawing stopped:", r)
+			drawStopped(s, log)
 			for range frames {
 			}
 		}
@@ -179,6 +182,31 @@ func draw(s *Screen, light Backlight, frames <-chan frame, log io.Writer) {
 			dark = false
 			light.On()
 		}
+	}
+}
+
+// drawStoppedText is what the LCD shows once drawing has failed: the screens still run, and so does what they
+// started, but nothing they show reaches the LCD any more.
+const drawStoppedText = "This screen can't be drawn any more.\n" +
+	"What was under way goes on, and\n" +
+	"screen.log says how it ends.\n" +
+	"Hold Esc 3 s to quit: a flash or setup\n" +
+	"then stops the safe way."
+
+// drawStopped replaces the last picture after drawing failed: drawStoppedText, else a blank screen, else nothing
+// (each step guarded, since what failed may fail again).
+func drawStopped(s *Screen, log io.Writer) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintln(log, "screen: couldn't replace the last picture either:", r)
+		}
+	}()
+	if err := s.Clear(); err != nil {
+		fmt.Fprintln(log, "screen:", err)
+		return
+	}
+	if err := s.Draw(Parse(drawStoppedText, s.Cols, s.Rows)); err != nil {
+		fmt.Fprintln(log, "screen:", err)
 	}
 }
 

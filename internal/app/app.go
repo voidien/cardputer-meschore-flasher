@@ -69,7 +69,7 @@ type Program struct {
 	// Fake, when set, replaces the boards, the network, the battery and the clock with a fake world: the demo build
 	// sets it (cmd/meshflash/demo.go, -tags demo). The release binary leaves it nil and never links a fake. Every
 	// test of this package sets it: the real dependencies (serialport.Open, usbid.Scan, the real catalog client) are
-	// built in one function that refuses to run under testing.Testing(), so no test opens a real port.
+	// built in one function that refuses to run in a test binary (inTest), so no test opens a real port.
 	Fake Fake
 }
 
@@ -132,9 +132,9 @@ func (p Program) run(args []string, stdin io.Reader, stdout, stderr io.Writer) i
 		// The device has about 100 MB free, shared with the launcher: past 32 MB the garbage collector works harder
 		// rather than let the heap grow (a soft limit, S9).
 		debug.SetMemoryLimit(32 << 20)
-		absorbSIGTERM()
+		stops, _ := absorbSIGTERM()
 		hups, _ := absorbSIGHUP()
-		err = p.start(f, st, log, stdin, stdout, stderr, realRunners(hups))
+		err = p.start(f, st, log, stdin, stdout, stderr, realRunners(hups, stops))
 	}
 	if err != nil {
 		if log.file != nil {
@@ -264,7 +264,7 @@ func (p Program) start(f flags, st appStore, log *logWriter, stdin io.Reader, st
 	case err != nil:
 		end.why = err.Error()
 	}
-	finish(m, end, st, log, p.Name, stderr)
+	finish(m, end, st, log, p.Name, stderr, r.stops)
 	return err
 }
 
@@ -285,13 +285,15 @@ type runners struct {
 	lcd func(m tea.Model, o screen.Options) (tea.Model, error)
 	// terminal runs the screens in the terminal; hungUp says the terminal went away (SIGHUP) first.
 	terminal func(m tea.Model, in io.Reader, out io.Writer) (hungUp bool, err error)
+	// stops are the SIGTERMs and SIGINTs absorbSIGTERM catches, for finish once the screens have ended (nil: none).
+	stops <-chan os.Signal
 }
 
-// realRunners are the real ones, with the SIGHUPs absorbSIGHUP catches.
-func realRunners(hups <-chan os.Signal) runners {
+// realRunners are the real ones, with the SIGHUPs absorbSIGHUP catches and the stops absorbSIGTERM catches.
+func realRunners(hups, stops <-chan os.Signal) runners {
 	return runners{lcd: screen.Run, terminal: func(m tea.Model, in io.Reader, out io.Writer) (bool, error) {
 		return inTerminal(m, in, out, hups)
-	}}
+	}, stops: stops}
 }
 
 // inTerminal runs the screens in the terminal's alternate screen (Bubble Tea, reading keys from in) until they quit,
@@ -332,18 +334,23 @@ func inTerminal(m tea.Model, in io.Reader, out io.Writer, hups <-chan os.Signal)
 	return lost.Load(), err
 }
 
-// absorbSIGTERM stops a SIGTERM from killing the program outright, so the shutdown always runs: the draft saved, the
-// running flash stopped the safe way and screen.log told what it left. The screens' handler (Bubble Tea's in the
-// kit; inTerminal's and internal/screen's here) turns the first SIGTERM into a quit, but stops listening when the
-// screens end, and a later one would end the program at once, before finish. On the LCD that happens: holding Esc
-// quits after 3 s, and the launcher, which watches Esc too, sends the whole program SIGTERM a moment later
-// (docs/device.md in the kit, "Apps started from the home screen"). The program exits by itself once finish is done,
-// which is bounded (shutdownWait), since only the launcher's SIGKILL, 3 s after its SIGTERM, can end it after this.
-// It returns a function that undoes it, for tests.
-func absorbSIGTERM() (stop func()) {
+// absorbSIGTERM stops a SIGTERM, or a SIGINT, from killing the program outright, so the shutdown always runs: the
+// draft saved, the running flash stopped the safe way and screen.log told what it left. The screens' handler (Bubble
+// Tea's in the kit; inTerminal's and internal/screen's here) turns the first one into a quit, but stops listening
+// when the screens end, and a later one would end the program at once, before finish. On the LCD that happens:
+// holding Esc quits after 3 s, and the launcher, which watches Esc too, sends the whole program SIGTERM a moment
+// later (docs/device.md in the kit, "Apps started from the home screen"). A SIGINT comes after a crash in the CLI
+// app: Bubble Tea's panic restore leaves the terminal cooked, so Ctrl+C is a signal again, not a key. The program
+// exits by itself once finish is done, which is bounded (shutdownWait, or lostWait for a flash left to finish with no
+// screen), since only the launcher's SIGKILL, 3 s after its SIGTERM, can end it after this.
+//
+// It returns the channel they arrive on: once the screens have ended, finish reads it, so a flash or setup left to
+// finish with no screen after a crash or a closed terminal is stopped the safe way when the owner asks (an Esc hold,
+// Ctrl+C), its end written to screen.log within the launcher's 3 s. And a function that undoes it, for tests.
+func absorbSIGTERM() (stops <-chan os.Signal, stop func()) {
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGTERM)
-	return func() { signal.Stop(ch) }
+	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
+	return ch, func() { signal.Stop(ch) }
 }
 
 // absorbSIGHUP stops a SIGHUP from killing the program, as absorbSIGTERM does a SIGTERM: the CLI app's terminal

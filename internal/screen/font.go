@@ -4,7 +4,7 @@
 // read from the keyboard's input device and sent to the program as the key messages a terminal would have produced.
 //
 // Copied whole from the CardputerZero app kit (code/internal/screen, the owner's own code: THIRD_PARTY_NOTICES), for
-// `meshflash --screen`. meshflash departs from the kit's copy in three places, and nowhere else (docs/phase2-design.md
+// `meshflash --screen`. meshflash departs from the kit's copy in four places, and nowhere else (docs/phase2-design.md
 // 18, SPEC.md "Changes to this spec"):
 //
 //   - The test page (testpage.go) names meshflash and shows every glyph meshflash uses (Glyphs), not Loom's
@@ -15,6 +15,9 @@
 //   - The dark screen (backlight.go, run.go): while the model is Dark (Dimmable), the screen is drawn black and the
 //     backlight turned off, only ever the real one when drawing on /dev/fb0 (Options.Backlight); it is turned on again
 //     before Run blanks the screen and returns, however the run ended.
+//   - A panic while drawing (run.go's draw) turns the light on and stops drawing but not the program, since a flash
+//     under way must carry on; the last picture is replaced by a fixed one saying so (drawStopped), never left on
+//     the LCD claiming what it showed.
 package screen
 
 import (

@@ -26,8 +26,8 @@ import (
 
 // After the screens have quit (and stopped listening), a SIGTERM still mustn't kill the program before it saves. The
 // check runs in a child process (this test binary again), which would die of the signal without absorbSIGTERM. Its
-// 200 ms sleep, the kit's, is the one real sleep in meshflash's tests (SPEC.md 10): a signal has no other way to say
-// it has been and gone.
+// 200 ms sleep, the kit's, is the one real sleep in meshflash's own tests (SPEC.md 10; internal/screen's tests copied
+// from the kit keep theirs): a signal has no other way to say it has been and gone.
 func TestASIGTERMAfterQuittingIsAbsorbed(t *testing.T) {
 	if os.Getenv("MESHFLASH_SIGTERM_CHILD") == "1" {
 		absorbSIGTERM()

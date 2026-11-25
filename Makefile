@@ -1,6 +1,6 @@
 # meshflash for the CardputerZero. CLAUDE.md says what each target is for.
 #   make test             gofmt check, go vet (host, linux/arm64 and the demo build), race tests, and a check that the
-#                         release binary links no fake: no network, no serial ports
+#                         release binary links no fake and no test code: no network, no serial ports
 #   make reference        re-record the web flasher's own JavaScript in Node (reference/README.md)
 #   make build-arm64      the program for the device → dist/meshflash (static, stripped)
 #   make deploy           copy it to the device as ~/.local/bin/meshflash (HOST=CardPuter by default)
@@ -16,7 +16,8 @@ HOST ?= CardPuter
 .PHONY: test reference build-arm64 deploy install-desktop demo run-small icon
 
 # The last step: the release binary for the device links no fake world (internal/flash/fakeworld, the demo build's),
-# so fake boards can never show on the device. A go list that fails fails the target rather than pass the check.
+# so fake boards can never show on the device, and no test code (package testing, net/http/httptest). A go list that
+# fails fails the target rather than pass the check.
 test:
 	@test -z "$$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
 	$(GO) vet ./...
@@ -25,9 +26,9 @@ test:
 	$(GO) test -race ./...
 	$(GO) test -race -tags demo ./cmd/meshflash
 	@deps=$$(GOOS=linux GOARCH=arm64 CGO_ENABLED=0 $(GO) list -deps ./cmd/meshflash) || exit 1; \
-	if echo "$$deps" | grep -qx 'meshflash/internal/flash/fakeworld'; then \
-		echo "dist/meshflash would link the fake world (meshflash/internal/flash/fakeworld)"; exit 1; \
-	fi
+	for p in meshflash/internal/flash/fakeworld testing net/http/httptest; do \
+		if echo "$$deps" | grep -qx "$$p"; then echo "dist/meshflash would link $$p"; exit 1; fi; \
+	done
 
 reference:
 	$(MAKE) -C reference

@@ -2,13 +2,13 @@ package app
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"testing"
 
 	"golang.org/x/sys/unix"
 
@@ -51,7 +51,7 @@ func deps(p Program, env Env) (flash.Deps, error) {
 // only). It refuses to run in a test: a test that got here would open real ports and reach the real servers
 // (CLAUDE.md), so every test of this package gives its Program a Fake.
 func realDeps(env Env) flash.Deps {
-	if testing.Testing() {
+	if inTest() {
 		panic("app: the real boards and network in a test: give the Program a Fake")
 	}
 	return flash.Deps{
@@ -60,23 +60,30 @@ func realDeps(env Env) flash.Deps {
 		Dialout:       usbid.DialoutStatus,
 		Clock:         serialport.RealClock,
 		Catalog:       catalog.NewClient(env.CacheDir, env.Version, catalog.Options{}),
-		Battery:       battery(screen.PowerSupplies),
+		Battery:       battery(screen.PowerSupplies, onZero(deviceModel)),
 		ClockSynced:   clockSynced,
 		MessengerPath: nodecli.MessengerPath(),
 	}
 }
 
+// inTest says this process is a go test binary, of any package: by the time a test runs, its main has called
+// testing.Init, which puts test.v on flag.CommandLine. It is testing.Testing() without importing package testing,
+// which would link testing and its flags into dist/meshflash (make test checks that nothing does).
+func inTest() bool { return flag.Lookup("test.v") != nil }
+
 // battery reads the Zero's charge from the power supplies in dir (screen.PowerSupplies), afresh each time it is asked
 // (every 30 s for the status line, and before a flash), so a reading that failed is tried again next time:
 //
 //   - (percent, true) from the first power supply of type "Battery" (the Zero's bq27220-0);
-//   - (-1, true) when there is a battery, or was one earlier in this run, but its charge can't be read: the screens
-//     then ask before flashing, as under 30% (a battery that can't be read is not "no battery");
-//   - (0, false) only when no battery has been seen at all: a PC.
+//   - (-1, true) when there is a battery, or was one earlier in this run, or this is the CardputerZero (zero, from
+//     onZero), but its charge can't be read: the screens then ask before flashing, as under 30% (a battery that
+//     can't be read is not "no battery", and on the Zero a fuel gauge whose driver didn't load is one that can't);
+//   - (0, false) only when no battery has been seen at all and this isn't the Zero: a PC.
 //
 // screen.Battery isn't used: its reading is kept for a minute, and its "" means both no battery and one it can't read.
-func battery(dir string) func() (percent int, ok bool) {
+func battery(dir string, zero bool) func() (percent int, ok bool) {
 	var seen atomic.Bool
+	seen.Store(zero)
 	return func() (int, bool) {
 		path := findBattery(dir)
 		if path == "" {
@@ -96,6 +103,18 @@ func battery(dir string) func() (percent int, ok bool) {
 		}
 		return n, true
 	}
+}
+
+// deviceModel is where Linux names the board it runs on, from its device tree.
+const deviceModel = "/proc/device-tree/model"
+
+// onZero says the program runs on the CardputerZero, which always has a battery: the device tree at path names its
+// Raspberry Pi Compute Module 0 ("Raspberry Pi Compute Module 0 Rev 1.0", docs/device.md in the kit). It is told by
+// the board, not by whether the fuel gauge is listed, so a gauge that didn't load reads as a battery that can't be
+// read. A PC has no such file, or names another board. One function, so how the Zero is told is easy to change.
+func onZero(path string) bool {
+	b, err := os.ReadFile(path)
+	return err == nil && strings.Contains(strings.TrimRight(string(b), "\x00\n"), "Raspberry Pi Compute Module 0")
 }
 
 // findBattery is the folder of the first power supply in dir whose type is "Battery", or "".

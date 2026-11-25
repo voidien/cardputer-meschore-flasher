@@ -283,3 +283,57 @@ func TestRunTurnsTheLightBackOn(t *testing.T) {
 		t.Error("the screen wasn't left clear")
 	}
 }
+
+// panicFB is a framebuffer whose next write panics once armed, as a drawing bug would mid-frame.
+type panicFB struct {
+	memFB
+	armed bool
+}
+
+func (p *panicFB) WriteAt(b []byte, off int64) (int, error) {
+	p.mu.Lock()
+	armed := p.armed
+	p.armed = false
+	p.mu.Unlock()
+	if armed {
+		panic("a drawing bug")
+	}
+	return p.memFB.WriteAt(b, off)
+}
+
+// A panic while drawing never leaves the last picture on the LCD (it said "Don't unplug the board." of a flash that
+// goes on, then ends unseen): it is replaced by drawStoppedText, the light on, and later frames are dropped.
+func TestDrawPanicReplacesThePicture(t *testing.T) {
+	fb := &panicFB{memFB: memFB{b: make([]byte, 640*170)}}
+	s, _ := NewScreen(fb, device, testFont(t))
+	light := &fakeLight{at: func() uint16 { return 0 }}
+	frames := make(chan frame)
+	done := make(chan struct{})
+	var log bytes.Buffer
+	go func() {
+		defer close(done)
+		draw(s, light, frames, &log)
+	}()
+	frames <- frame{view: "Flashing Repeater v1.18.0\n▸ Writing 42%\nDon't unplug the board."}
+	fb.mu.Lock()
+	fb.armed = true
+	fb.mu.Unlock()
+	frames <- frame{view: "Flashed"}
+	frames <- frame{view: "dropped"}
+	close(frames)
+	<-done
+
+	want := &memFB{b: make([]byte, 640*170)}
+	ref, _ := NewScreen(want, device, testFont(t))
+	ref.Clear()
+	ref.Draw(Parse(drawStoppedText, ref.Cols, ref.Rows))
+	if !bytes.Equal(fb.b, want.b) {
+		t.Error("the LCD doesn't show drawStoppedText after the panic")
+	}
+	if !strings.Contains(log.String(), "screen: drawing stopped: a drawing bug") {
+		t.Errorf("log %q", log.String())
+	}
+	if got := light.got(); !strings.HasPrefix(got, "on") {
+		t.Errorf("the light after the panic: %q", got)
+	}
+}

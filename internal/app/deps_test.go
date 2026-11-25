@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -29,11 +30,39 @@ func TestNoRealDepsInTests(t *testing.T) {
 	}
 }
 
+// No test sleeps in real time (CLAUDE.md's hard rules, SPEC.md 10): every clock is virtual. The two exceptions SPEC
+// names are allowed and counted: the kit's SIGTERM test in this package (a signal has no other way to say it has
+// been and gone) and internal/screen's tests copied from the kit. A guard's time.After, never waited out by a test
+// that passes, is not a sleep.
+func TestNoRealSleepsInTests(t *testing.T) {
+	allowed := map[string]int{"internal/app/app_test.go": 1, "internal/screen/screen_test.go": -1}
+	for _, top := range []string{"cmd", "internal"} {
+		err := filepath.WalkDir(filepath.Join("..", "..", top), func(path string, e os.DirEntry, err error) error {
+			if err != nil || e.IsDir() || !strings.HasSuffix(path, "_test.go") {
+				return err
+			}
+			b, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			rel := filepath.ToSlash(strings.TrimPrefix(path, filepath.Join("..", "..")+string(filepath.Separator)))
+			n := strings.Count(string(b), "time."+"Sleep(") // split, so this file doesn't count itself
+			if max, ok := allowed[rel]; n > 0 && (!ok || max >= 0 && n > max) {
+				t.Errorf("%s sleeps in real time %d times: use the virtual clock", rel, n)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 // The battery as the screens need it: read afresh each time, a failure never kept; a battery that is there (or was)
 // but can't be read is (-1, true), so the screens ask before flashing; (0, false) only where there has been none.
 func TestBatteryUnreadable(t *testing.T) {
 	dir := t.TempDir()
-	read := battery(dir)
+	read := battery(dir, false)
 	expect := func(what string, wantN int, wantOK bool) {
 		t.Helper()
 		if n, ok := read(); n != wantN || ok != wantOK {
@@ -82,8 +111,36 @@ func TestBatteryUnreadable(t *testing.T) {
 		t.Fatal(err)
 	}
 	expect("the battery gone from the list after it was seen", -1, true)
-	if n, ok := battery(dir)(); n != 0 || ok {
+	if n, ok := battery(dir, false)(); n != 0 || ok {
 		t.Errorf("a fresh reading with no battery: (%d, %v), want (0, false)", n, ok)
+	}
+	// On the Zero a battery never listed (its fuel gauge's driver didn't load) is one that can't be read.
+	if n, ok := battery(dir, true)(); n != -1 || !ok {
+		t.Errorf("the Zero with no battery listed: (%d, %v), want (-1, true)", n, ok)
+	}
+}
+
+// The Zero is told by its device tree's model, NUL-terminated as Linux gives it; a PC has none or another.
+func TestOnZero(t *testing.T) {
+	dir := t.TempDir()
+	model := func(s string) string {
+		p := filepath.Join(dir, strings.Fields(s)[2]) // a file each: "Compute", "4"
+		if err := os.WriteFile(p, []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	for _, c := range []struct {
+		path string
+		want bool
+	}{
+		{model("Raspberry Pi Compute Module 0 Rev 1.0\x00"), true},
+		{model("Raspberry Pi 4 Model B Rev 1.4\x00"), false},
+		{filepath.Join(dir, "none"), false},
+	} {
+		if got := onZero(c.path); got != c.want {
+			t.Errorf("onZero(%s) = %v", c.path, got)
+		}
 	}
 }
 
