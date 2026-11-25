@@ -75,6 +75,21 @@ make demo        # builds dist/meshflash-demo
 
 The demo never draws on a real screen: with `--screen` it draws only into a file named by `--framebuffer`.
 
+## On the device
+
+Phase 3 runs on the CardputerZero with the owner: `docs/phase3.md` is the runbook, step by step. These run on the PC
+and reach the Zero with the same ssh alias as `make deploy` (`HOST=CardPuter`); each prints a summary to paste and
+keeps its output under `dist/phase3/`, and none needs `sudo` or draws on the LCD:
+
+```bash
+make device-check   # read-only facts from the PC and the Zero
+make device-run     # the deployed meshflash on the Zero drawing into a file, keys from a FIFO (no board plugged in)
+make device-shot    # a picture of the LCD and its text, while MeshFlash is open
+make device-mem     # the memory of a running meshflash, just before quitting it
+make device-logs    # screen.log, config.json and drafts.json from the Zero
+make device-tools   # copies keyrate.py there, for the CLI app: how it repeats a held key
+```
+
 ## For developers
 
 `make test` is the whole check (gofmt, vet on the host, arm64 and the demo build, race tests, and that the release

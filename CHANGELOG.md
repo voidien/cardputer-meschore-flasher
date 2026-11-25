@@ -37,3 +37,6 @@
   through the whole form; on the last row it keeps it and closes, ready for `y`, and Shift+Tab walks back the same way.
   A row the box or list can't show as it is (a name over 23 bytes, a bandwidth not in the list) stops the walk,
   unchanged, until you open it. Tab with nothing open still just moves.
+- Phase 3 tools, run from the PC against the Zero (`docs/phase3.md`): `make device-check`, `device-run`,
+  `device-shot`, `device-mem`, `device-logs` and `device-tools`, each printing a summary to paste; none needs `sudo`
+  or draws on the LCD.

@@ -745,6 +745,9 @@ Each phase ends with a report and a stop.
 3. **The device, with the owner.** The owner runs the commands: `dialout`, `make deploy`, a run on the device drawing
    into a file with keys from a FIFO (S30), memory (S9), what `/proc/device-tree/model` says (6.1); then, with the
    owner watching, flashing and setting up a real board; the hand-over checklist (`docs/standards.md` in the kit).
+   The owner runs them from the T14, in the order of `docs/phase3.md`, with `make deploy`, `make install-desktop` and
+   the read-only or into-a-file `make device-check`, `device-run`, `device-shot`, `device-mem`, `device-logs` and
+   `device-tools` (`scripts/device/`), each printing a summary to paste.
 
 ## Changes to this spec
 
@@ -831,3 +834,5 @@ Each phase ends with a report and a stop.
   asking"); 5's "Text box" row spoke for Setup's boxes only and now says Choose board's find box clears on Esc and
   does nothing on Tab, as the code does; 11's record of the CLAUDE.md answer names `make test`'s whole check, as the
   CLAUDE.md change and design 16.1 do.
+- 25 Nov 2026, Phase 3: the owner's decision that the device phase's scripts live in the repository and run from
+  the T14, the owner pasting back what they print: 12 names the `make device-*` targets and `docs/phase3.md`.
