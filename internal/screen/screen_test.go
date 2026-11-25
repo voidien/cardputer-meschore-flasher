@@ -619,11 +619,12 @@ func TestRunTestEndsOnAnEscHold(t *testing.T) {
 	}
 }
 
+// meshflash's page (the kit's asks for "Loom screen test" and "“Quotes”"): its name and every glyph its screens use.
 func TestTestPageFits(t *testing.T) {
 	for _, cols := range []int{53, 45} {
 		g := Parse(TestPage(cols, `"a" (code 30)`, 3), cols, 12)
 		text := g.Text()
-		for _, want := range []string{"Loom screen test", "~", "“Quotes”", "Key 3", "Hold Esc"} {
+		for _, want := range []string{"meshflash screen test", "~", Glyphs, "Key 3", "Hold Esc"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%d columns: %q missing from\n%s", cols, want, text)
 			}

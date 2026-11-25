@@ -8,12 +8,14 @@ import (
 	"time"
 )
 
-// TestPage is the screen `loom --screen-test` shows: every printable character, the client's symbols, the 16 colors,
-// a beat line and a chapter title as the client draws them, and the last key pressed.
+// TestPage is the screen `meshflash --screen-test` shows: every printable character, every glyph meshflash's screens
+// use (S15: the set docs/phase2-design.md's TestGlyphs allows in the goldens), the 16 colors, a list row, grey text,
+// a heading and a step as the screens draw them, and the last key pressed. (meshflash's page: the kit's says "Loom
+// screen test" and shows Loom's glyphs, without the ✓ and the plain quotes and dashes meshflash uses.)
 func TestPage(cols int, lastKey string, keys int) string {
 	var b strings.Builder
 	line := func(s string) { b.WriteString(s); b.WriteByte('\n') }
-	line(fmt.Sprintf("Loom screen test · %d columns", cols))
+	line(fmt.Sprintf("meshflash screen test · %d columns", cols))
 	var ascii strings.Builder
 	for r := '!'; r <= '~'; r++ {
 		ascii.WriteRune(r)
@@ -24,7 +26,7 @@ func TestPage(cols int, lastKey string, keys int) string {
 		line(a[:n])
 		a = a[n:]
 	}
-	line("“Quotes” it’s — dash … ▸ ✎ ● ○ · ¢ • →")
+	line(Glyphs)
 	var colors strings.Builder
 	for c := 0; c < 16; c++ {
 		if c < 8 {
@@ -34,8 +36,9 @@ func TestPage(cols int, lastKey string, keys int) string {
 		}
 	}
 	line(colors.String() + "\x1b[0m \x1b[7m reversed \x1b[0m")
-	line("\x1b[90m▸ a beat, in grey\x1b[0m")
-	line("\x1b[7m Chapter 2: a title, reversed \x1b[0m")
+	line("▸ ttyACM0 · XIAO nRF52840 (2886:8044) ●")
+	line("\x1b[90m  Could be: Xiao nRF52 WIO, Ikoka Stick…\x1b[0m")
+	line("\x1b[7mAll boards:\x1b[0m ✓ Erased (10 s) · “Hilltop 2”")
 	if keys == 0 {
 		line("Press keys: each one shows here.")
 	} else {
@@ -44,6 +47,10 @@ func TestPage(cols int, lastKey string, keys int) string {
 	b.WriteString("\x1b[90mHold Esc 3 s to leave (or wait 2 min)\x1b[0m")
 	return b.String()
 }
+
+// Glyphs is every character beyond ASCII that meshflash's screens use, as the test page shows them: curly quotes,
+// the dashes, and S15's symbols (docs/phase2-design.md: TestGlyphs checks the goldens hold no other).
+const Glyphs = "“” ‘’ – — … ▸ ● ○ · ¢ • → ✓ ✎"
 
 // RunTest shows the test page on the LCD and the keys pressed, until Esc is held or limit passes. It logs each key
 // event (its Linux code and what the client makes of it) to o.Log.
@@ -83,7 +90,7 @@ func RunTest(o Options, limit time.Duration) error {
 	go func() {
 		defer close(reading)
 		var kb Keyboard
-		esc := escHold{hold: o.HoldToQuit, quit: quit}
+		esc := keyHold{hold: o.HoldToQuit, fire: quit, after: o.after}
 		err := ReadKeyEvents(kbd, func(e KeyEvent) {
 			if e.Code == keyEsc {
 				esc.key(e.Value)
