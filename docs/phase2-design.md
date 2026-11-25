@@ -57,9 +57,11 @@ cmd/meshflash ──► internal/app ──► internal/ui ──► internal/fl
 | `packaging/` | `meshflash.desktop.in`, `make_icon.py` (icon A), `meshflash_100.png` | E |
 | `Makefile` | `build-arm64`, `deploy`, `install-desktop`, `run-small`, `icon`, `demo`, and `test` extended | E |
 
-The Phase 1 packages are not changed (owner question 17: no `usbid` addition). `internal/screen`, the kit's copy,
-departs from it in three places, all the integrator's and done before the builders start: the `--screen-test` page
-(owner question 10), the screen lock's Tab hold and the backlight (section 18); its package doc lists them.
+The Phase 1 packages are not changed (owner question 17: no `usbid` addition), but for what the Phase 2 check found:
+`nodecli.Run` stops only between commands (`StopGrace`, `StepError.Written` and `Maybe`) and `nrfdfu.TouchContext`
+is a touch a stop can end. `internal/screen`, the kit's copy, departs from it in four places, the integrator's: the
+`--screen-test` page (owner question 10), the screen lock's Tab hold and the backlight (section 18), and the last
+picture replaced after a panic while drawing (after the Phase 2 check); its package doc lists them.
 `internal/ui` never imports it (the lock's message and `Dark` meet it through `screen.Options.TabHeld` and
 `screen.Dimmable`). `internal/ui` imports `flash` for types, `Job` and the pure rules, `store` for types, and `catalog`,
 `nodecli`, `usbid` for types and pure functions (`catalog.Choose`, `nodecli.Check`, `nodecli.TxLimit`,
@@ -205,22 +207,31 @@ Everything in the backend brief's section 2 (`map-backend.md`) and `backend.go`'
 - **DFU only to a positively identified bootloader** (`Port.InBootloader`: `NRFBootloader` and the interface string
   "nRF Serial"), and **never START into a stale session** (section 4.4).
 - **Probes** never open a bootloader port: they answer `InBootloader` with `Reason` "" when `InBootloader()` and the
-  session isn't stale, "Its last flash stopped part-way: …" (4.4) when it is, and "Looks like its bootloader, but
-  meshflash can't confirm it: press reset twice quickly." when the port is a bootloader by VID:PID only. A probe
+  session isn't stale, "Its last flash stopped part-way: …" (4.4) when it is, "It was already in its bootloader when
+  meshflash started: meshflash asks you to press reset twice quickly when you flash it." for one listed at the first
+  scan (owner question 18), and "Looks like its bootloader, but meshflash can't confirm it: press reset twice
+  quickly." when the port is a bootloader by VID:PID only. A probe
   sends only `ver`, `get role`, `board` and, once a repeater or room server has answered, the read-only `get`s of
   `nodecli.ReadSettings` for the Board screen's name (owner question 1), given the `Info` with `Role` set to
   `nodecli.RoleRepeater` so a room server is never asked `get guest.password`; `Current.GuestPassword` is therefore
   always empty from a probe (the world reports a probe asking for it).
 - **ZephCore is never set up.** A `ver` reply naming ZephCore (case-insensitive "zeph" in `Info.Version.Raw`) is
-  `NotSettable`, Reason "ZephCore: meshflash sets up only MeshCore's own repeater and room-server firmware.", in
-  Probe and ReadNode. `Outcome.Setup` is set only when `Request.Firmware.Source == catalog.SourceMeshCore`, its Role is
+  `NotSettable`, Reason "meshflash sets up only MeshCore's own repeater and room-server firmware." (worded, as every
+  NotSettable Reason, to follow the Board's "Running ZephCore repeater v1.18.2: "; a firmware too old reads "flash
+  v1.11.0 or newer to set it up here."), in Probe and ReadNode. `Outcome.Setup` is set only when `Request.Firmware.Source == catalog.SourceMeshCore`, its Role is
   `repeater` or `roomServer`, and the board answered as one after the flash. (Phase 3 records a real ZephCore `ver`.)
-- **Risk**: `RiskNone` until the first erase or write (an ESP32's first FLASH_BEGIN, an nRF52's START), `RiskErased`
-  until the image is written (MD5 checked, STOP acknowledged or `MayHaveWorked`), then `RiskWritten`. A setup is
-  `RiskNone` until the node saves its first setting, `RiskSettings` after, `RiskRadioSent` once `set radio` is
-  answered.
-- **Long waits say so** in the running step's `Note`: "Stopping once the erase ends (about 8 s)" after a cancel
-  during the nRF52 erase; "No answer: sending again (2 of 3)" on a resent frame; "attempt 2 of 4" on ESP32 connects.
+- **Risk**: `RiskNone` until the board is sent into its bootloader (the 1200-baud touch's DTR drop, an ESP32-S3 on
+  TinyUSB reset into its ROM) or found there, `RiskBootloader` then (nothing written; it waits there until reset),
+  `RiskErased` from the first erase or write (an ESP32's first FLASH_BEGIN, an nRF52's START; and from the start of a
+  retry's wait for the double press when an earlier START erased the app) until the image is written (MD5 checked,
+  STOP acknowledged or `MayHaveWorked`), then `RiskWritten`. A setup is `RiskNone` until the node saves its first
+  setting, `RiskSettings` after, `RiskRadioSent` once `set radio` is answered (or reached the node and no answer
+  came), `RiskRestarted` once the reboot is sent (a stop then skips only the check).
+- **Long waits say so** in the running step's `Note`: "Stopping once the erase ends" after a cancel during the nRF52
+  erase (no count of seconds, which would be stale at once: the step's own clock and `Expect` show it); "No answer:
+  sending again (2 of 3)" on a resent frame; "attempt 2 of 4" on ESP32 connects. A step under way is named for what
+  it does ("Waiting for it on USB", "Asking its version"), and renamed for its result when done ("Back on USB
+  (ttyACM0)", "Running v1.18.0").
 - **Words**: `State` is one short sentence that `Recovery` never repeats (where esp's or nrfdfu's Recovery starts with
   the state, that sentence becomes `State` and the rest `Recovery`). The Result screen adds "Press r to try again:
   the file is saved, so no Wi-Fi is needed." when `Retry`; Recovery doesn't say it.
@@ -231,7 +242,9 @@ Everything in the backend brief's section 2 (`map-backend.md`) and `backend.go`'
   `Progress.Note`, or esp's and nrfdfu's error text; never a raw reply from the node (the `password` step's reply
   is "password now: <pw>", a failed read-back of `get guest.password` echoes the guest password), a `Step.Command`, a
   `serialport.Log`, or a `Settings`/`SetupRequest` printed with `string(Secret)`. One line per failure and one per
-  Outcome.
+  Outcome. The backend is `Outcome.Log`'s one writer: it gives the line to `Deps.Logf` just before `Finish`, for every
+  Job that didn't end OK (none for a download the owner stopped), whether or not a screen watches; neither Setup's end
+  nor internal/app's `finish` writes it again (a test in each counts it once).
 
 ### 4.2 Steps and outcomes
 
@@ -242,7 +255,7 @@ Text when it ends ("Erasing" → "Erased"). Targets:
 | --- | --- |
 | ESP32 | "Into the bootloader" (Note "attempt 2 of 4"), "Flasher stub loaded (ESP32-S3)", wipe only "Erased the whole chip", "Writing" (bytes), "Checked: MD5 matches", "Restarted" |
 | ESP32-S3 TinyUSB | as ESP32, with "Into the bootloader" covering the re-enumeration to the ROM's port (`map-backend.md` 1.4 step 6) |
-| nRF52 | "Into the bootloader (1200-baud touch)" (or "Already in its bootloader"), "Erasing" (`Expect` = `nrfdfu.EraseWait`), "Writing" (bytes), "The board checked the CRC", "Back on USB (ttyACM0)", MeshCore repeater/room server only "Running v1.18.0", then "Back to 115200 baud" when a touch was made |
+| nRF52 | "Into the bootloader (1200-baud touch)" (or "Already in its bootloader"), "Erasing" (`Expect` = `nrfdfu.EraseWait`), "Writing" (bytes), "The board checked the CRC", "Waiting for it on USB" then "Back on USB (ttyACM0)", MeshCore repeater/room server only "Asking its version" then "Running v1.18.0", then "Back to 115200 baud" when a touch was made |
 | nRF52 on a stale session (4.4) | first "Press the board's reset button twice quickly" (waits up to `FreshBootloaderWait` for the bootloader port to go and come back), then as nRF52 from "Erasing" |
 
 Outcomes, by what happened (B writes each, with a test; the screens show them as they are):
@@ -263,8 +276,11 @@ Outcomes, by what happened (B writes each, with a test; the screens show them as
 | nRF52 STOP sent, ACK lost (`MayHaveWorked`) and the app came back | Flashed | | | | as above |
 | nRF52 `MayHaveWorked` and nothing came back in 15 s | Flashing stopped | "Most likely written, but the board didn't come back." | `Recovery()` | yes | |
 | `ver` names another version after flashing | Flashing stopped | "It runs vX, not the version just flashed: the bootloader most likely refused the image." | "Press reset twice quickly, then flash again." | yes | |
-| Fresh bootloader never came (stale session, 60 s) | Not flashed | "Nothing more was sent: its app is still erased." | "Press reset twice quickly, then press r." | yes | |
+| Fresh bootloader never came (stale session, 60 s) | Not flashed | "Nothing more was sent: its app is still erased." | "Press r; meshflash then asks you to press reset twice quickly." (only a double press its own wait sees counts: 4.4) | yes | |
 | Owner stopped it (Esc, y; or a quit) | Flashing stopped (`Stopped`) | from where it stopped, as above | as above | yes | |
+| Stopped during the touch, before DTR dropped (the line set back to 115200 first) | Flashing stopped | "Nothing was sent to the board: it still has its old firmware." | | yes | |
+| Stopped after the touch, or while an ESP32-S3 is found in its ROM | Flashing stopped | "Nothing was written: it may be in its bootloader now, with its old firmware." (the ROM's words for the ESP32) | "Press its reset button once to start it." | yes | |
+| Stopped while a retry waits for the double press | Flashing stopped | "Nothing more was sent: its app is still erased." (after a START), else "Nothing was sent: it is still in its bootloader." | `askDoublePress`, else "Press its reset button once to start it." | yes | |
 
 Setup outcomes: OK "Set up" with `Summary` ("Name, radio, TX power … sent and read back.", "It restarted and runs
 v1.18.0 on 869.618 MHz."), `Sent`; a `*nodecli.StepError` gives "Setup stopped", `Summary` its `Display` and `Reason`,
@@ -272,7 +288,10 @@ v1.18.0 on 869.618 MHz."), `Sent`; a `*nodecli.StepError` gives "Setup stopped",
 rebooted", "still on its old radio until it restarts"), `Retry` true; after the reboot, `ErrChanged` gives "Set up, but
 it came back different" with what differs. A setup stopped by `Job.Cancel` (Esc and `y`, or Ctrl+C, which quits at
 once: owner question 16) stops between commands and finishes "Setup stopped", `Stopped`, with `Summary` saying what
-was sent and read back before it stopped, `State` what the node is left with by the same words ("Its radio is saved
+was sent and read back before it stopped (nodecli.Run writes nothing once the stop comes, the gap before a command
+included, and reads the reply to one already written for up to `nodecli.StopGrace`, 1 s, so it knows whether the
+node took it; one whose reply never came is "<Label> was sent just as it stopped, and may have been saved.", with
+nodecli's `State`, and a radio sent so is recorded in `Sent`), `State` what the node is left with by the same words ("Its radio is saved
 but it hasn't restarted: it stays on its old radio until it restarts."), and `Recovery` how to finish ("Set it up
 again to finish, or restart it to switch to the new radio."): internal/app writes all three to screen.log after a
 quit. Every setup picture carries `Planned` (the plan's steps, the read-back, the reboot and the check).
@@ -311,8 +330,11 @@ research 10.4 rule 2. So:
 
 1. `Backend` keeps `stale map[string]staleDFU` by `Port.DraftKey` (an nRF52's Key: its serial). It is set the moment
    START is written to a bootloader session, and cleared when that board's app is seen on USB again (any scan, the
-   screens' included: they all go through `Backend.Scan`), or when its bootloader port is seen gone and then back
-   after the record.
+   screens' included: they all go through `Backend.Scan`), or when step 2's own wait sees its bootloader port go and
+   come back. A scan that sees the port go and come back at any other time clears nothing (changed after the Phase 2
+   check): a battery board unplugged and plugged in again keeps its bootloader session, since OTAFIX has no exit on
+   losing USB power and no inactivity timer (research 5.6), so only a double press the flash asked for and saw makes
+   it fresh. The cost: a double press made on the Board screen before `r` is asked for again.
 2. Flash on a recorded board never uses the bootloader port as it is: it runs the step "Press the board's reset
    button twice quickly", then waits (polling `Deps.Scan` every 100 ms on the clock) first for the port to go and
    then to come back, within `FreshBootloaderWait`; Esc stops it. None in time: "Not flashed" (4.2).
@@ -355,8 +377,11 @@ research 10.4 rule 2. So:
   checks the copies are byte for byte the originals). `Deps` uses an in-memory `http.Client` (a `RoundTripper` over
   the handler: no socket at all); `DepsOver` an `httptest.Server`. `SetOffline` and `FailPath` make it fail.
 - **Events**: `At(d, f)` runs f once on the world's ticker after d of virtual time: how a test acts during a wait. Tests
-  act on the world only through `At` or the event-based `UnplugWhileWriting` and `UnplugAfterCommands`, never from
-  their own goroutine while a Job runs.
+  act on the world only through `At` or the event-based `UnplugWhileWriting`, `UnplugAfterCommands`, `AfterCommands`
+  and `PauseAfter` (added at integration: the setup is held after the node has answered a named command, in the
+  backend's gap before the next, until the test resumes it: `TestE2ESetupCtrlCQuits`'s Ctrl+C after `set radio`),
+  never from their own goroutine while a Job runs. `SetMessenger` comes before `Deps` (a Deps keeps the path it was
+  given) and is refused after one.
 - **Problems** collects every rule broken (the list in `world.go`: a port left open, an open without baud or
   `Exclusive`, a probe opening a bootloader, sending more than `ver`/`get`/`board` or asking `get guest.password`, a
   touch on a non-nRF52-app port,
@@ -404,21 +429,29 @@ The kit's `app.go` (`map-kit-app.md` section 1), with:
   that builds `serialport.Open`, `func() { return usbid.Scan("") }`, `usbid.DialoutStatus`, `serialport.RealClock`,
   `catalog.NewClient(st.CacheDir(), p.Version, catalog.Options{})`, the battery, `ClockSynced` from `unix.Adjtimex`
   (synced when the state isn't `TIME_ERROR` and `Status&STA_UNSYNC == 0`) and `nodecli.MessengerPath()`. `realDeps`
-  panics under `testing.Testing()`. Every test of the package sets `Program.Fake` (a fakeworld or stub Deps whose
+  panics in a test binary (`inTest`: `flag.Lookup("test.v") != nil`, which every `go test` binary's main sets before a
+  test runs; `testing.Testing()` would link package `testing` into `dist/meshflash`, which `make test` now refuses). Every test of the package sets `Program.Fake` (a fakeworld or stub Deps whose
   `Open` fails the test): `TestNoRealDepsInTests`.
 - **The battery**: its own wrapper over the power-supply folder (`screen.PowerSupplies`), not `screen.Battery`'s
-  cached string: `(0, false)` only when no power supply of type `Battery` exists (a PC); present but unreadable is
-  `(-1, true)`, and a failure is never cached. The screens then ask "Battery level unknown. Flash anyway?".
+  cached string: `(0, false)` only when no power supply of type `Battery` has been seen and this isn't the
+  CardputerZero (a PC); present but unreadable, or never listed on the Zero (its fuel gauge's driver didn't load), is
+  `(-1, true)`, and a failure is never cached. The Zero is told by `/proc/device-tree/model` naming the "Raspberry Pi
+  Compute Module 0" (`onZero`), not by whether the gauge is listed. The screens then ask "Battery level unknown.
+  Flash anyway?".
 - **screen.log** (`~/.cache/<Name>/screen.log`, 0600, truncated, first line `<Name> <Version> started <RFC3339>`)
   opened on every run, in the terminal too (section 13), wrapped once in a locked writer that is given as
   `ui.Options.Log`, as the base of `flash.Deps.Logf`, and as `Env.Log`.
 - `run`: `debug.SetMemoryLimit(32 << 20)`, absorb SIGTERM and SIGHUP (the CLI app's terminal closing sends SIGHUP;
-  absorbed, Bubble Tea's input ends instead and `run` reaches its shutdown), `store.OpenApp(p.Name)`, `LoadConfig` (an
+  Bubble Tea v1.3.10's input doesn't end on it, its read loop ignoring EOF, so in a terminal the app ends the screens
+  itself on SIGHUP, with `Program.Quit`, never `Kill`, which races in v1.3.10, and marks the terminal lost: answer 19's
+  path; under `--screen` a SIGHUP changes nothing), `store.OpenApp(p.Name)`, `LoadConfig` (an
   error is a line in screen.log, not a stop), `lipgloss.SetColorProfile(colorProfile())` before `ui.New`, then the
   deps, `ui.Options{Name: p.Name, Version: p.Version, ShowBattery: so != nil, TerminalKeys: so == nil, …}`, then
   `screen.Run(m, screen.Options{…, TabHeld: ui.LockMsg{}, Backlight: *backlightSys})` (the screen lock's 3 s Tab hold
   and its dark screen: section 18; `HoldToLock` is left at its 3 s default) or `tea.NewProgram(m, tea.WithAltScreen(),
-  tea.WithInput(stdin))`. The demo build refuses `--screen` without `--framebuffer` (it must never draw on the real LCD
+  tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())` with the app's own SIGTERM and SIGINT
+  handler calling `Program.Quit` (Bubble Tea's own handler blocks on a send that a SIGTERM just as the screens quit
+  never completes, the bug internal/screen already works around on the LCD). The demo build refuses `--screen` without `--framebuffer` (it must never draw on the real LCD
   by accident), so it never switches the real backlight either.
 - **After Run** (`finish`), on the `*ui.Model` the app made (the same pointer the screens update; `screen.Run` gives
   back nil after a panic Bubble Tea caught): when Run ended normally (Ctrl+C, Ctrl+C and `y` while flashing, Esc on
@@ -465,7 +498,8 @@ the real `~/.config/meshflash`. `packaging_test.go`: `TestHomeScreenEntry` (the 
 build (`$(GO) run -tags demo ./cmd/meshflash`): the real binary on a PC would probe its real serial ports and reach the
 real servers. Add `icon` (`python3 packaging/make_icon.py`), `demo` (`go build -tags demo -o dist/meshflash-demo
 ./cmd/meshflash`), and to `test`: `$(GO) vet -tags demo ./...`, and a check that the release binary links no fake
-(`$(GO) list -deps ./cmd/meshflash | grep -q fakeworld` fails the target). Update the header comment.
+and no test code (`$(GO) list -deps ./cmd/meshflash` naming `fakeworld`, `testing` or `net/http/httptest` fails the
+target). Update the header comment.
 
 ## 8. internal/ui: the frame (fixed) and the model's rules
 
@@ -503,8 +537,9 @@ Title left, cut to fit (Help's is "Help"); on the right the battery on the LCD (
 
 - `…` while `m.busy > 0` (a probe, ReadNode, a flash or setup Job: board work only; a catalog fetch or download shows
   its own elapsed time instead);
-- else, on a screen about one board, `●` while that board is listed in the last scan (`listed`: `usbid.SameBoard`, or
-  the same tty, identity and socket for a port SameBoard can't follow) and `○` when it isn't or is gone: Board's
+- else, on a screen about one board, `●` while that board is listed in the last scan (`listed`: the backend's own
+  `flash.SameBoard`, which is `usbid.SameBoard`, or the same tty, identity and socket for a port with no useful
+  serial that SameBoard can't follow; never another serial on the same tty) and `○` when it isn't or is gone: Board's
   selected port; `flow.port` from Choose board to Flashing; the Outcome's `Board` on Result (nil: `○`, the mock's
   "Flashing stopped … ○"); on Setup its node's port, then its Outcome's `Board`;
 - on a screen about no board (Update catalog, Saved files, Board with no port), `●` when any port is listed, `○` when
@@ -546,7 +581,7 @@ Ctrl+C         quit, from anywhere (asks first while flashing; a setup stops whe
 
 <Name> <Version> for CardputerZero
 Catalog and files: flasher.meshcore.io, zephcore.meshcore.dev; GitHub when a MeshCore file isn't on the flasher site. A catalog update downloads about 1.5 MB.
-Looks for boards on USB every second, reading only what Linux lists; it opens a port only to ask a board on the Board screen what it runs.
+Looks for boards on USB every second, reading only what Linux lists; it opens a port only to ask a board what it runs, on the Board and Choose board screens, and to flash or set it up.
 Keeps its settings in ~/.config/<Name> and its catalog, files and screen.log in ~/.cache/<Name>.
 Reads the messenger's radio from ~/.config/mesh/config.json; never writes it.
 Holding Tab 3 s locks meshflash: every key is then ignored but the unlock (any key wakes the screen, then Tab, then Enter), and a flash or setup carries on. Nothing locks by itself. Holding Esc 3 s still ends meshflash, locked or not (the launcher does that): a flash or setup under way stops the safe way, and screen.log says what the board is left with.
@@ -594,9 +629,12 @@ At 40×10 there are eight body lines, fewer with a message. So:
 1. **Step lists** (Flashing, Download, Setup's sending and end) use `fitSteps`: the running or failed step always in
    view, the oldest done steps folded into "✓ 3 earlier steps"; the screen keeps its header ("<board> on ttyACM0")
    and its footer ("Don't unplug the board.") outside the lines it gives `fitSteps`.
-2. **Result and Setup's done and failed views** scroll with j/k (`scrollStep`) and Space/b, with `State`, `Recovery`
-   and the retry line pinned at the bottom: the Summary scrolls in the space above them (when they alone don't fit,
-   everything scrolls). Their hint gains "j/k more" through `fitHint` when the body doesn't fit.
+2. **Result and Setup's done and failed views** scroll with j/k and Space/b, with `State`, `Recovery` and the retry
+   line pinned at the bottom: the Summary scrolls in the space above them a paragraph at a time (`endview.go`: j/k one
+   paragraph, Space/b a page), so no sentence shows only its first or last lines, with blank lines between it and
+   the pinned part when a page is short. When the pinned part leaves less room than the Summary's first paragraph,
+   the generic retry line ("Press r to try again: …") scrolls after the Summary instead; when even that isn't
+   enough, everything scrolls. Their hint gains "j/k more" through `fitHint` when the body doesn't fit.
 3. **The Setup form** scrolls to keep the focused row and its problem in view (`window`).
 4. **Lists** (Board's ports, Choose board, Role, Version, Saved files) scroll to keep the selection in view.
 
@@ -670,7 +708,10 @@ The mock-ups in SPEC §4 are the targets, "close to, not exactly".
   opened yet and `Scan.Dialout` false): "Serial ports need the dialout group. Run these once:" and `Scan.Hint`'s lines
   (else SPEC 9.3's two), each on its own line, never wrapped together.
 - **Keys**: `enter` choose (no catalog: note "Press u to fetch the catalog first."); `u`; `s` (not `NoProblem`: note
-  "s sets up a repeater or room server; this board didn't answer as one."); `c`; `r`; `j`/`k`/↑/↓; `esc` quits.
+  "s sets up a repeater or room server; this board didn't answer as one.", worded by the port's state: "Wait:
+  meshflash is still asking it what it runs." while its probe is under way or queued, the backend's Reason for a
+  NotSettable node, the bootloader or another program's hold for those; the note goes once that port's probe state
+  changes, with no key: S16); `c`; `r`; `j`/`k`/↑/↓; `esc` quits.
 - **Hints**: `"enter choose  u update  c files  ? help"` (39); a settable port selected `"enter choose  s set up  u
   update  ? help"` (40); no ports `"r rescan  u update  c files  ? help"` (35); no catalog `"u update  c files  r
   rescan  ? help"` (35).
@@ -705,17 +746,22 @@ The mock-ups in SPEC §4 are the targets, "close to, not exactly".
 - **Hints**: `"j/k move  enter pick  f find  ? help"` (36); the box open `"enter keep  esc clear"`.
 - **Help**: j/k, enter, f, esc; inside the box: Enter keep, Esc clear, Backspace.
 - **Goldens**: `TestChooseBoardSays` (Heltec v4 saying "Heltec V4"), `TestChooseRemembered`, `TestChooseOnlyMatch`
-  (a RAK 4631), `TestChooseFind` (box open, "xiao" typed), `TestChooseFindNoMatch`, `TestChooseUnknown` (a CH340: "All
-  boards" only, the nRF52 boards grey), `TestChooseDownloadOnly` (Enter on a Pico W: the note), `TestChooseC6`,
+  (a Heltec Mesh Node T096, 239a:8029 "HT-n5262G": the one sure match; a RAK 4631's app, 239a:8029 "WisCore RAK4631
+  Board", is a sure match for five boards), `TestChooseFind` (box open, "xiao" typed), `TestChooseFindNoMatch`,
+  `TestChooseUnknown` (an FTDI 0403:6001 port, which usbid doesn't know: "All boards" only, the nRF52 boards grey; a
+  CH340 has two unverified candidates, ThinkNode M5 and M7), `TestChooseDownloadOnly` (Enter on a Pico W: the note), `TestChooseC6`,
   `TestChooseGreysOtherFamily` (a Xiao port: the ESP32 boards grey), `TestChooseProbing` (held, then the answer).
 
 ### 9.3 Role
 
 - **State** `roleScreen`: the rows (headings, roles), the selection, the scroll offset.
 - **Body**: the selected role's notices first (`Firmware.Notices`: plain text, links already dropped, the T1000-E
-  LoRaWAN warning included; grey; wrapped, never cut), then the roles in three groups under `heading()`: "MeshCore",
-  "ZephCore · third-party port", "Ripple · closed source, third-party". The body scrolls to keep the selection
-  visible, the notices scrolling off the top as it moves down.
+  LoRaWAN warning included; in normal text, not grey, since they are warnings; wrapped, never cut), then the roles in
+  three groups under `heading()`: "MeshCore", "ZephCore · third-party port", "Ripple · closed source, third-party".
+  The notices stay pinned above the list and only the list scrolls under them, keeping the selection in view (changed
+  after the Phase 2 check: they used to scroll off the top, so at 45×10 a role low in the list never showed its own).
+  When they don't all fit with the selected row (40×10), whole notices are left out (`roleNotices`): one that says
+  the board can be bricked is kept first, then the shortest.
 - **Keys**: `enter` pick, `j`/`k`, `esc` back. **Hint** `"j/k move  enter pick  esc back  ? help"` (38).
 - **Goldens**: `TestRoleGroups` (Seeed Studio Wio Tracker L1 Pro: MeshCore, ZephCore and Ripple),
   `TestRoleT1000ENotice`, `TestRoleZephCoreOnly` (Seeed Studio Xiao C6, reached only in this test: Choose refuses it).
@@ -787,7 +833,8 @@ The mock-ups in SPEC §4 are the targets, "close to, not exactly".
 
 - Title "Downloading <role> <version>"; the steps through `fitSteps`: per file its name and "212 of 361 KB · 59%
   (0:12)" (or "212 KB so far" with no total), then "From flasher.meshcore.io" or "From GitHub (the flasher site didn't
-  have it)"; "Wi-Fi needed.". `esc` stops it (no question: nothing saved changes). Done: back where it came from
+  have it)", by the running step's `From` (the URL the backend is fetching: `catalog.Client.DownloadFrom` names it,
+  the catalog's and then its GitHub fallback), never by a Note's words; "Wi-Fi needed.". `esc` stops it (no question: nothing saved changes). Done: back where it came from
   (Confirm runs Prepare again and shows the SHA-256; Version shows "saved"). Failed: back, with the Outcome's Summary
   shown in that screen's body ("Couldn't download: no network, or the server didn't answer."). **Hint** `"esc stop  ?
   help"`. **Goldens**: `TestDownloadProgress`, `TestDownloadUnknownSize`, `TestDownloadGitHub`, `TestDownloadFailed`
@@ -807,13 +854,17 @@ The mock-ups in SPEC §4 are the targets, "close to, not exactly".
   10 s)" from `Expect`.
 -  **Goldens**: `TestFlashingWriting` (the mock), `TestFlashingErasing`, `TestFlashingStopAsks`,
   `TestFlashingStopBeforeWrite` (`RiskNone` words), `TestFlashingStopping`, `TestFlashingQuitAsks`,
-  `TestFlashingNRF52Retry` (8 steps at 40×10: folded), `TestFlashingConnectAttempt` ("attempt 2 of 4").
+  `TestFlashingNRF52Retry` (8 steps at 40×10: folded), `TestFlashingConnectAttempt` ("attempt 2 of 4"),
+  `TestFlashingStopInBootloader` (`RiskBootloader`, the longest question; added at the final check). Test:
+  `TestFlashingStopWords` (every `Risk`'s words, Esc's and Ctrl+C's).
 
 ### 9.9 Result
 
 - **Body**: the Outcome's `Summary` paragraphs, then `State`, then `Recovery`, each wrapped; when `Retry`, "Press r to
   try again: the file is saved, so no Wi-Fi is needed."; on success with `Setup`, "Press s to set it up." Scrolls as
-  8.9 says, with State, Recovery and the retry line pinned.
+  8.9 says, a paragraph at a time, with State, Recovery and the retry line pinned (the retry line scrolling after the
+  Summary when the pinned part leaves no room for its first paragraph). Help lists `j/k` as "scroll (space, b: a
+  page)", as Setup's end does.
 - **Keys**: `s` (when `Setup`), `r` (when `Retry`: back to Confirm with `flow.node` dropped and the State shown there;
   on an ESP32 the kind is cleared, owner question 4), `enter`/`esc` back to Board, `j`/`k`/Space/`b` when it scrolls.
 - **Hints**: `"s set up  enter done  ? help"`, `"enter done  ? help"`, `"r retry  esc back  ? help"`; scrolling `"s set
@@ -826,11 +877,13 @@ The mock-ups in SPEC §4 are the targets, "close to, not exactly".
 ### 9.10 Update catalog
 
 -  "Fetching the catalog… (0:03)"; then "72 boards, newest v1.18.0, 1.6 MB" and "(70 MeshCore boards and 2 that only
-  ZephCore has)"; on failure "The saved catalog stays." and why: "No network, or the server didn't answer." for
+  ZephCore has)"; on failure "The saved catalog stays." ("No catalog is saved yet." when there is none, "The saved
+  catalog is still damaged." for a damaged one) and why: "No network, or the server didn't answer." for
   `catalog.ErrUnreachable`, "flasher.meshcore.io answered HTTP 503." for a `*catalog.FetchError` with a status, the
-  error's words otherwise. `esc` while fetching stops it (the saved catalog stays). When the answer comes, Help closes
-  (as at a Job's Done). **Hints** fetching `"esc stop ? help"`, done `"enter done ? help"`, failed `"u try again esc
-  back ? help"`. **Goldens**: `TestUpdateFetching` (held), `TestUpdateDone`, `TestUpdateOffline`, `TestUpdateHTTPError`.
+  error's words otherwise. `esc` while fetching stops it and goes back to the Board with the note "Update stopped. The
+  saved catalog stays." (or as on failure). When the answer comes, Help closes
+  (as at a Job's Done). **Hints** fetching `"esc stop  ? help"`, done `"enter done  ? help"`, failed `"u try again  esc
+  back  ? help"` (two spaces between, as every hint). **Goldens**: `TestUpdateFetching` (held), `TestUpdateDone`, `TestUpdateOffline`, `TestUpdateHTTPError`.
   S16: `TestUpdateMessagesKeepUp` ("Fetching…" goes when the answer comes, with no key).
 
 ### 9.11 Saved files
@@ -856,7 +909,7 @@ and fits 40. Help lists the screen's keys (S19), then the footer of 8.6.
 | Notes | (none) | j/k scroll; space/b a page; esc back | | |
 | Confirm | `preparedMsg`, `yBatteryMsg`, `tickMsg`, the download's `flash.Progress`; scans via `afterScan` | u update (ESP32: keeps identity, contacts, pairing); w full wipe (ESP32: erases everything); y flash (downloads first if needed); esc back | "Checking the file…" when Prepared comes; "Not saved yet" when the download ends; "isn't plugged in now" when the board comes back | "Checking the file… (0:01)" |
 | Download | `flash.Progress`, `tickMsg` | esc stop the download | the screen itself, when the Job ends | bytes, percent, "(0:12)" |
-| Flashing | `flash.Progress`, `tickMsg` | esc stop (asks y: says what stopping leaves); Ctrl+C quit (asks y) | the screen, "Don't unplug", Help, the question: all at `Done` | the steps' times and bytes |
+| Flashing | `flash.Progress`, `tickMsg` | esc stop (asks y: says what stopping leaves); Ctrl+C is the frame's own line on every screen's Help ("asks first while flashing"), so not listed twice | the screen, "Don't unplug", Help, the question: all at `Done` | the steps' times and bytes |
 | Result | (none) | s set it up; r try again from the saved file; j/k scroll; enter, esc back to the boards | | |
 | Update catalog | `updatedMsg`, `catalogMsg`, `tickMsg` | esc stop; u try again; enter back | "Fetching…" when it ends | "Fetching the catalog… (0:03)" |
 | Saved files | `savedFilesMsg`, `deletedMsg` | j/k move; x delete (asks y); esc back | the file's row when deleted | |
@@ -864,8 +917,8 @@ and fits 40. Help lists the screen's keys (S19), then the footer of 8.6.
 
 Goldens of Help opened on each screen with keys of its own (S19): `TestHelpBoard`, `TestHelpChoose`, `TestHelpRole`,
 `TestHelpVersion`, `TestHelpNotes`, `TestHelpConfirm`, `TestHelpDownload`, `TestHelpFlashing`, `TestHelpResult`,
-`TestHelpUpdate`, `TestHelpFiles` (C), `TestHelpSetup` (D), `TestHelpScrolledToTheEnd` (the footer) and
-`TestHelpNamesTheProgram` (C).
+`TestHelpUpdate`, `TestHelpFiles` (C), `TestHelpSetup` (D) and `TestHelpScrolledToTheEnd` (the footer); and
+`TestHelpNamesTheProgram` (C), a test of Help's words rather than a golden: the demo's name, folders and version.
 
 ## 10. Setup (builder D)
 
@@ -894,7 +947,8 @@ top-level name D declares starts with `setup`, `preset` or `pick` (section 11).
 | failed | the Outcome, State and Recovery pinned | `"r retry  esc back  ? help"`; scrolling `"r retry  j/k more  esc back  ? help"` | to Board |
 
 `r` on a failed setup goes back to the form with its values kept and both passwords empty (Help: "r back to the form
-to send again (type the password again)"); `y` is only ever "send". `confirmStopSetup` (Esc while sending) is worded
+to send again (type the password again)", for a room server "(type both passwords again)", and the end's own line the
+same); `y` is only ever "send". `confirmStopSetup` (Esc while sending) is worded
 by the picture's `Risk` (`state.go`). Ctrl+C while sending asks nothing (owner question 16): the frame quits at once,
 cancelling the Job, and writes to screen.log what the node was sent and is left with (8.7); the app then writes the
 Outcome (7.1), and saves `Outcome.Sent` when the node took the radio. `setupConfirmText` never words `confirmQuit`.
@@ -959,7 +1013,10 @@ half-typed line before the SIGTERM's `Shutdown` saves the draft. So when Esc can
 stays that row's draft value for 3.5 s on the screens' clock (`setup` state: row, text, when); `saveSetupDraft` writes
 it if it runs within that window; any other key drops it. The screen shows the old value throughout, so S21's cancel
 is unchanged. Tests: `TestSetupDraftKeptThroughEscHold` (open Name, type "Hill", `esc`, `d.m.Shutdown()`: drafts.json
-has name "Hill"), and `TestSetupCancelledTextDropped` (the same with a key, or 3.5 s, between).
+has name "Hill"), `TestSetupDraftKeptThroughEscHoldInTerminal` (the same in the CLI app, where the held Esc's
+repeats are dropped: the frame's `escRepeat`, added after the Phase 2 check, since there the first repeat used to leave
+the form and the next quit before the SIGTERM), and `TestSetupCancelledTextDropped` (the same with a key, or 3.5 s,
+between).
 
 ### 10.7 Goldens and tests
 
@@ -1144,7 +1201,7 @@ them), with the answers as given (item 7: Ctrl+C while a setup is sent quits at 
 | S16 `TestFlashingMessagesKeepUp` (a `Done` picture with no key moves to Result in the same Update; "Don't unplug the board.", an open question and Help are gone), `TestBoardPortGoneDropsItsLines`, `TestUpdateMessagesKeepUp`, `TestDownloadLeavesAtDone`, `TestSetupReadingGoes` | `internal/ui` | C, D |
 | S20 `TestDeleteNeedsYes`, `TestStopNeedsYes` (Esc on Flashing: `n` and `?` do nothing; `y` cancels once), `TestQuitWhileFlashingAsks`, `TestLowBatteryAsksTwice` (and the held-`y` rule: `y` every 33 ms for 2 s, nothing; 0.6 s, `y`, flashed once), `TestSetupStopNeedsYes` | `internal/ui` | C, D |
 | `TestEnterTwiceFlashesOnce` (`hold`, `y`, `y`, `releaseAll`: exactly one "Flash" in `fb.called()`), `TestConfirmKindRace`, `TestConfirmYWaitsForPrepare`, `TestLateAnswers` (held: a probe answer for a port gone; a stale `preparedMsg`; a picture of an old Job), `TestRememberBoard`, `TestNothingFetchedUnlessAsked` (`UpdateCatalog` and `Download` only after `u`, `d`, `y`) | `internal/ui` | C |
-| `TestColorProfile`, `TestASIGTERMAfterQuittingIsAbsorbed`, `TestScreenLogFreshEachRun`, `TestVersionFlag`, `TestShutdownIsBounded`, `TestShutdownSavesSentRadio`, `TestShutdownLogsTheOutcome`, `TestLockWiring`, `TestDemoDepsWired`, `TestNoRealDepsInTests`, `TestBatteryUnreadable` | `internal/app` | E |
+| `TestColorProfile`, `TestASIGTERMAfterQuittingIsAbsorbed`, `TestScreenLogFreshEachRun`, `TestVersionFlag`, `TestShutdownIsBounded`, `TestShutdownSavesSentRadio`, `TestShutdownLogsTheOutcome`, `TestLockWiring`, `TestDemoDepsWired`, `TestNoRealDepsInTests`, `TestNoRealSleepsInTests` (added at the final check), `TestBatteryUnreadable` | `internal/app` | E |
 | `TestHomeScreenEntry`, `TestIcon` | `cmd/meshflash` | E |
 | Store tests (section 6) | `internal/store` | A |
 | Backend and world tests (4.3); `TestCatalogCopies` (fakeworld's catalog files equal the originals) | `internal/flash`, `fakeworld` | B |
@@ -1612,3 +1669,53 @@ Tab then Enter to unlock
 9. **The page in Terminus 6×12** at 53×14, and `--screen-test` showing every glyph of `screen.Glyphs` (no `?`).
 10. **A held Tab in `--screen-test`**: its log shows Tab's down, repeat and up events, confirming the evdev values
     the hold relies on, and their times give the LCD keyboard's repeat delay and rate (taken as 33 ms after 250 ms).
+
+## 19. Integration (25 Nov 2026)
+
+The five parts merged, every `TestE2E…` running over builder B's world. The seams the builders reported, and how each
+was settled (the code is the record; SPEC's "Changes to this spec" has the owner-visible side):
+
+- **Outcome.Log has one writer**, the backend: it sets the line only for a Job that didn't end OK and gives it to
+  `Deps.Logf` just before `Finish`, screen or no screen. Setup's end and internal/app's `finish` no longer write it;
+  `TestE2EUnplugMidFlash`, `TestE2ESetupUnplugged` and `TestShutdownLogsTheOutcome` count it once.
+- **The messenger's radio** is used when `nodecli.MessengerRadio.Found()` (a used file always has a frequency): the
+  note is only for the form, no longer read to tell "used" from "no file".
+- **nodecli's words**: the latitude and longitude problems use an ASCII hyphen ("must be -90 to 90 degrees."), fixed
+  at the source with a test that no problem holds a rune beyond ASCII but curly quotes; Setup's own replacement went.
+  The path hash step reads "Path hash: 1 byte".
+- **hooks.go** lists `m.yHeld` among what builder D reads, and says D sets `m.screen` only in `openSetup`.
+- **TestE2ESetupCtrlCQuits** pauses the setup on an event, `Board.PauseAfter("set radio ")` (5): held in the backend's
+  gap before the next command, released by the test; no polling and no real time but the deadlock guard. It checks
+  that no command reaches the node after the Ctrl+C (the gap's stop writes nothing: `nodecli` looks at the context
+  again after the gap), and `TestSetupCancelledSaysWhatWasSent` that the command a stop meets in flight is answered
+  and counted (`AfterCommands(n)` stops after the node has handled n commands, before their answer is read).
+- **The Download screen's source** is `flash.Step.From`, the URL the backend is fetching (`catalog.Client.DownloadFrom`
+  names each as it starts), never a Note's words; the GitHub golden lost the Note that said it twice.
+- **ui.Store** names the drafts' parameter `key` (a `DraftKey`).
+- **What a port is opened for** stays the backend's optional `OpenedFor` on the world's ports: it changes nothing sent,
+  and `TestRealPortHasNoOpenedFor` keeps a real port from ever growing one.
+- **World.SetMessenger** after a `Deps` is refused with an error rather than silently missed.
+- **InBootloader's third Reason** (owner answer 18) is in `flash.Problem`'s doc and 4.1.
+- **package testing** is out of `dist/meshflash`: `realDeps` refuses a test binary by `flag.Lookup("test.v")` instead of
+  `testing.Testing()`, and `make test` fails if the release binary links `testing` or `net/http/httptest`.
+- Found at the final check, words on screen that no golden or test held, now pinned: Flashing's "Stop now?" for
+  `RiskWritten` and `RiskBootloader` (`TestFlashingStopWords`, and `TestFlashingStopInBootloader`'s goldens), Setup's
+  `RiskRestarted` question, Ctrl+C on a flash the screens didn't start (`TestCtrlCOnAFlashFromElsewhereAsks`), the
+  Board's "Reading the saved catalog…" and "Can't read the saved catalog:" (`TestBoardCatalogLine`), "The saved
+  catalog is still damaged." (`TestUpdateDamagedStaysDamaged`), the preset's note, the text boxes' hints and the local
+  advert's words (`TestSetupPresetNoteAndBoxWords`), Saved files' "and 1 more board" (`TestFilesSharedByBoards`), and
+  owner answer 15's two lines as a number (`TestNotesKeys`). The no-real-sleeps rule has a guard,
+  `TestNoRealSleepsInTests` (`internal/app`), allowing only the two exceptions SPEC 10 names.
+- Found at the PC run: the Setup form now scrolls by whole rows (a row's problem shows whole or not at all), and the
+  demo's sites answer at about 256 KB/s in real time (`World.fetchRate`, the demo's only), so its Download screen can
+  be seen at all.
+
+The PC run (12, step 5): `dist/meshflash-demo --screen` into a framebuffer file in a stand-in 6×12 font (misc-fixed
+6×13, public domain, fetched through the module proxy inside `github.com/hajimehoshi/bitmapfont/v3` v3.3.0 and fitted
+to 12 rows; never in `go.mod`), keys from a FIFO: Board, Choose board, Role, Version, Notes, Confirm, `u`, `y`,
+Download, Confirm with the SHA-256, `y`, Flashing, Result, `s`, the Setup form, a text box, the lock (Tab held 3.4 s,
+the page, dark after 5 s, woken, Tab, Enter), Help, quit: every frame read back cell by cell, nothing cut or
+overlapping, the status line on every frame, only `✎` drawn by internal/screen (the font lacks it, as Terminus does).
+VmHWM of the demo on the PC (x86-64) 38.4 MB, of which the fake world's heap is about 9.5 MB and the catalog's about
+3.8 MB: the release binary's is measured on the device in Phase 3 (S9). `make run-small` drew at 45×10 and put the
+terminal's size back; the demo refused `--framebuffer /dev/fb0`, `/dev/null` and no `--framebuffer` at all.

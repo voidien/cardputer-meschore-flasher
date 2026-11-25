@@ -159,11 +159,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 9. The CardputerZero app kit (the owner's own code)
    Used for: internal/screen, copied whole from the kit's code/internal/screen
    (drawing on the LCD in a pixel font, reading the keyboard device, the
-   battery); internal/ui's text.go, editor.go and its test driver; and the
-   shape of internal/app and internal/store. The kit is the owner's own code
-   (it carries no licence file of its own); the copies are part of meshflash
-   under meshflash's MIT licence, and the kit is named here so they can be
-   traced.
+   battery); internal/ui's text.go, editor.go and its test driver;
+   internal/app's Main, flags, signal handling and screen.log (app.go,
+   reshaped); internal/store's writeJSON and readJSON and its damaged-is-none
+   rule (store.go); and the icon conventions packaging/make_icon.py follows.
+   The kit is the owner's own code (it carries no licence file of its own);
+   the copies are part of meshflash under meshflash's MIT licence, and the kit
+   is named here so they can be traced.
 
    meshflash's departures from the kit's internal/screen (its package doc says
    the same, and docs/phase2-design.md section 18):
