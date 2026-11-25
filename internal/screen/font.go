@@ -2,6 +2,19 @@
 // of running inside the CLI app, whose font and 45×10 grid are fixed (SPEC.md §8, Phase 5). The Bubble Tea screens are
 // unchanged: each frame they produce is parsed into a grid of cells and drawn to the framebuffer, and key presses are
 // read from the keyboard's input device and sent to the program as the key messages a terminal would have produced.
+//
+// Copied whole from the CardputerZero app kit (code/internal/screen, the owner's own code: THIRD_PARTY_NOTICES), for
+// `meshflash --screen`. meshflash departs from the kit's copy in three places, and nowhere else (docs/phase2-design.md
+// 18, SPEC.md "Changes to this spec"):
+//
+//   - The test page (testpage.go) names meshflash and shows every glyph meshflash uses (Glyphs), not Loom's
+//     (owner question 10).
+//   - The screen lock's Tab hold (run.go): with Options.TabHeld set, Tab acts once per press, its repeats dropped,
+//     and held for HoldToLock (3 s) it sends TabHeld to the model. The kit's escHold became keyHold, with its clock
+//     passed in so the holds are tested in virtual time.
+//   - The dark screen (backlight.go, run.go): while the model is Dark (Dimmable), the screen is drawn black and the
+//     backlight turned off, only ever the real one when drawing on /dev/fb0 (Options.Backlight); it is turned on again
+//     before Run blanks the screen and returns, however the run ended.
 package screen
 
 import (

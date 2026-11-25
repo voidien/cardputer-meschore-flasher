@@ -46,6 +46,8 @@ const (
 // It remembers, for this run, every nRF52 board (by Port.DraftKey) whose bootloader session has had START sent
 // into it, from the moment START is written until that board's app is seen back on USB, or its bootloader port is
 // seen gone and then back (docs/phase2-design.md 4.4): such a session is stale, and DFU is never started in it again.
+// A bootloader port already there at the first scan is stale too: only one seen to appear in this run is fresh
+// (owner question 18). Nothing of this is saved across runs (owner questions 9 and 18: config.json holds nothing new).
 type Backend struct {
 	d Deps
 }
@@ -57,9 +59,12 @@ func New(d Deps) *Backend { return &Backend{d: d} }
 func (b *Backend) Scan() (Scan, error) { return Scan{}, errNotBuilt }
 
 // Probe asks a running node what it is, read-only (nodecli.Probe: ver, get role, board, within 2 s; never anything
-// that could change the node, not even the blank line that would unstick it). The screens call it for every port
-// that appears on the Board screen; an nRF52 bootloader is never opened and comes back InBootloader with the Reason
-// its kind calls for (a stale session, a bootloader not positively identified). A ZephCore build answering like
+// that could change the node, not even the blank line that would unstick it); once a repeater or room server has
+// answered, it reads its settings for the Board screen's name with nodecli.ReadSettings given the Info with Role
+// nodecli.RoleRepeater, so a room server is never asked its guest password (owner question 1: Node.Current, about
+// half a second more). The screens call it for every port that appears on the Board screen; an nRF52 bootloader is
+// never opened and comes back InBootloader with the Reason its kind calls for (a stale session, a bootloader not
+// positively identified, or one already there at the first scan: owner question 18). A ZephCore build answering like
 // MeshCore is NotSettable. The port is opened at 115200, exclusively, and closed before Probe returns. Cancelling ctx
 // stops it within 100 ms.
 func (b *Backend) Probe(ctx context.Context, p Port) Node {
@@ -103,10 +108,11 @@ func (b *Backend) Prepare(req Request) Prepared {
 // or the board coming back running the version just flashed (nRF52), and where the board is afterwards. A board
 // whose bootloader session is stale (see Backend) gets a first step, "Press the board's reset button twice quickly",
 // that waits up to FreshBootloaderWait for its bootloader port to go and come back, and never uses the port as it
-// is. Every flash that made a 1200-baud touch ends, however it ends, by opening the tty now on the touched name (if
-// any) at 115200 and closing it, so no later program's close reboots the board into DFU. Every failure finishes the
-// Job with what the board is left with and how to recover it. Job.Cancel stops it the safe way (on an ESP32 the RTS
-// pulse that takes the board out of its bootloader). It returns at once.
+// is (owner question 17: no Phase 1 change; a double press the scans missed is asked for again). Every flash that
+// made a 1200-baud touch ends, however it ends, by opening the tty now on the touched name (if any) at 115200 and
+// closing it, so no later program's close reboots the board into DFU. Every failure finishes the Job with what the
+// board is left with and how to recover it. Job.Cancel stops it the safe way (on an ESP32 the RTS pulse that takes
+// the board out of its bootloader). It returns at once.
 func (b *Backend) Flash(ctx context.Context, req Request) *Job {
 	return notBuilt(JobFlash)
 }
@@ -119,8 +125,12 @@ func (b *Backend) ReadNode(ctx context.Context, p Port, firstBoot bool) Node {
 
 // Setup sends a setup end to end: nodecli.Plan and Run (one command at a time, each checked, then every value read
 // back), the reboot, waiting for the board to come back (by serial number), and nodecli.Confirm. Steps are the
-// plan's (their Text is the nodecli.Step's Display: a password shows as ••••). A failure finishes with the
-// nodecli.StepError's State. The admin password is dropped as soon as it has been sent. It returns at once.
+// plan's (their Text is the nodecli.Step's Display: a password shows as ••••), and every picture's Planned is how
+// many steps there are in all, for the screen lock's "step 4 of 20". A failure finishes with the nodecli.StepError's
+// State. Job.Cancel (Esc and y, or a Ctrl+C, which quits at once: owner question 16) stops it between commands, and
+// the Outcome then says what was sent and read back (Summary), what the node is left with (State: "Its radio is
+// saved but it hasn't restarted: it stays on its old radio until it restarts.") and how to finish (Recovery), which
+// internal/app writes to screen.log. The admin password is dropped as soon as it has been sent. It returns at once.
 func (b *Backend) Setup(ctx context.Context, req SetupRequest) *Job {
 	return notBuilt(JobSetup)
 }

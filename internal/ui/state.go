@@ -36,7 +36,7 @@ const (
 
 // confirmKind is a question waiting for y (S20): any other key says no, and a held y (Model.yHeld) neither answers
 // nor dismisses it. While one is asked, the message line shows its text and the hint line "y yes  any other key no".
-// Ask one with Model.ask.
+// Ask one with Model.ask. While the screen is locked no key reaches a question: it waits, unanswered, underneath.
 type confirmKind int
 
 // The questions. Their words are builder C's (screenConfirmText), on scrSetup builder D's (setupConfirmText).
@@ -47,8 +47,9 @@ const (
 	// until it's flashed again." (RiskErased), "Stop now? It's already written; meshflash just won't check it."
 	// (RiskWritten).
 	confirmStop
-	// confirmQuit: Ctrl+C while a flash or setup Job runs: the same words as confirmStop (or confirmStopSetup),
-	// ending "…and meshflash quits." y quits (the frame's quitNow stops the Job).
+	// confirmQuit: Ctrl+C while a flash Job runs: confirmStop's words, ending "…and meshflash quits." y quits (the
+	// frame's quitNow stops the Job). Ctrl+C while a setup is being sent asks nothing: it quits at once, stopping
+	// the setup where it is (owner question 16), so this is never asked on scrSetup.
 	confirmQuit
 	// confirmLowBattery: y on Confirm under 30%, or with a battery that can't be read: "Battery 24%. Flash anyway?",
 	// "Battery level unknown. Flash anyway?".
@@ -59,7 +60,7 @@ const (
 	confirmDelete
 	// confirmStopSetup: Esc while a setup is being sent (builder D's), worded by the picture's flash.Risk: "Stop now?
 	// Nothing has been sent yet." (RiskNone), "Stop now? The node keeps what it was sent so far." (RiskSettings),
-	// "…so far, and switches to the new radio when it restarts." (RiskRadioSent).
+	// "…so far, and switches to the new radio when it restarts." (RiskRadioSent). Only Esc asks it: Ctrl+C quits.
 	confirmStopSetup
 )
 
@@ -74,9 +75,11 @@ type Model struct {
 	version     string
 	log         io.Writer
 	showBattery bool
-	nowFn       func() time.Time
-	afterFn     func(time.Duration, tea.Msg) tea.Cmd
-	waitFn      func(*flash.Job, uint64) tea.Cmd
+	// terminalKeys: the keys come from a terminal, where a held Tab is found from its repeats (lock.go).
+	terminalKeys bool
+	nowFn        func() time.Time
+	afterFn      func(time.Duration, tea.Msg) tea.Cmd
+	waitFn       func(*flash.Job, uint64) tea.Cmd
 
 	// The frame (frame.go draws it and keeps these).
 	w, h      int
@@ -88,8 +91,8 @@ type Model struct {
 	confirmAt time.Time // when the question was asked
 	busy      int       // board operations in flight (probes, ReadNode, a flash or setup Job): "…" on the status line
 	quit      bool      // the program is ending: View draws nothing
-	// lastY is when the last key was pressed if it was y (zero otherwise); yHeld says the key being handled is a y
-	// less than heldYGap after it: a held y repeating, which answers no question and starts nothing.
+	// lastY is when y was last pressed (zero before the first); yHeld says the key being handled is a y less than
+	// heldYGap after it: a held y repeating, which answers no question and starts nothing.
 	lastY time.Time
 	yHeld bool
 
@@ -115,6 +118,9 @@ type Model struct {
 	// clock, for the running step's time between pictures.
 	job       *flash.Job
 	jobSeenAt time.Time
+
+	// The screen lock (lock.go, the frame's): while lock.on every key goes to it and View draws its page.
+	lock lockState
 
 	// What has been picked so far on the way to a flash (builder C's type).
 	flow flow

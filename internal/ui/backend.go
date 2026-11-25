@@ -84,6 +84,12 @@ type Options struct {
 	// ShowBattery puts the battery's charge on the status line ("87% ●"): --screen sets it, since the launcher's
 	// bar is frozen while meshflash draws the LCD. The low-battery question on Confirm works either way.
 	ShowBattery bool
+	// TerminalKeys says the keys come from a terminal (the CLI app: internal/app sets it when not --screen), where a
+	// held key arrives as the same key again and again and its release is never seen: the frame then finds the
+	// screen lock's Tab hold from Tab's repeats, and drops them (lock.go). false under --screen, where
+	// internal/screen reads each press and release, never sends a held Tab's repeats, and sends LockMsg once Tab has
+	// been held 3 s (screen.Options.TabHeld); and in tests, unless a test of the terminal's rule sets it.
+	TerminalKeys bool
 	// Now is the screens' clock (nil: time.Now). It is never the backend's clock: tests drive it themselves.
 	Now func() time.Time
 	// After is how the screens wait before a message comes back (ticks for elapsed times, the Board screen's

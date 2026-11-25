@@ -1,7 +1,8 @@
 // Package ui is meshflash's screens, as one Bubble Tea model (SPEC.md 3-5): Board, Choose board, Role, Version,
-// Notes, Confirm, Download, Flashing, Result, Setup, Update catalog, Saved files and Help, designed for the CLI app's
-// 45×10 grid, still usable at 40×10, and drawn at 53×14 on the LCD (S10). It never does serial or network I/O
-// itself: it asks a Backend (a *flash.Backend) and watches long work through a *flash.Job.
+// Notes, Confirm, Download, Flashing, Result, Setup, Update catalog, Saved files and Help, and the screen lock over
+// them all, designed for the CLI app's 45×10 grid, still usable at 40×10, and drawn at 53×14 on the LCD (S10). It
+// never does serial or network I/O itself: it asks a Backend (a *flash.Backend) and watches long work through a
+// *flash.Job.
 //
 // Its shape is the CardputerZero app kit's internal/ui (code/internal/ui/model.go and help.go, the owner's own code):
 // one Model, one Update, View laying out the status line, the body, a message and the key hints.
@@ -11,8 +12,9 @@ package ui
 // screen is drawn in and the order every message is handled in (design 8.1, 8.2), written once so that builder C
 // (the screens in model.go and its files) and builder D (Setup) can each test their own screens through it before
 // the other's code exists. It calls builder C's screen methods (screenKey, screenView, …, placeholders in model.go)
-// and builder D's setup methods (setup.go) as hooks.go lists them. Nobody adds a type, func or var whose name starts
-// with "frame", and nobody redeclares a name defined here.
+// and builder D's setup methods (setup.go) as hooks.go lists them, and the screen lock (lock.go, fixed too) above them
+// all. Nobody adds a type, func or var whose name starts with "frame" or "lock", and nobody redeclares a name defined
+// here.
 
 import (
 	"context"
@@ -33,9 +35,11 @@ const (
 	scanEvery = time.Second
 	// batteryEvery is how often the status line's battery is read again while it shows (ShowBattery).
 	batteryEvery = 30 * time.Second
-	// heldYGap: a y less than this after the previous key, a y too, is a held key repeating (the LCD's keyboard
-	// repeats every 33 ms after 250 ms, and so does the CLI app's terminal): it answers no question and starts
-	// nothing, so release and press again (owner question 5).
+	// heldYGap: a y less than this after the previous y is taken for a held y repeating: it answers no question, the
+	// question stays, and it starts nothing, so release and press again (owner question 5, for every y question:
+	// Confirm's, the battery's, the SoftDevice's, Setup's). Keys between the two don't matter: a deliberate y never
+	// follows another that fast. A held key is taken to repeat every 33 ms after 250 ms, Linux's default, on the LCD's
+	// keyboard and in the CLI app's terminal alike (UNVERIFIED: Phase 3 measures both, docs/phase2-design.md 18.9).
 	heldYGap = 500 * time.Millisecond
 	// scrollStep is how many lines j and k scroll text: Help, Notes, Result. Two, as Loom's (the owner found one line
 	// slow going there; owner question 15 confirms it for meshflash).
@@ -60,7 +64,7 @@ type (
 // New makes the program's model.
 func New(o Options) *Model {
 	m := &Model{backend: o.Backend, store: o.Store, cfg: o.Config, name: o.Name, version: o.Version, log: o.Log,
-		showBattery: o.ShowBattery, nowFn: o.Now, afterFn: o.After, waitFn: o.Wait}
+		showBattery: o.ShowBattery, terminalKeys: o.TerminalKeys, nowFn: o.Now, afterFn: o.After, waitFn: o.Wait}
 	if m.name == "" {
 		m.name = "meshflash"
 	}
@@ -88,8 +92,8 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.rescan(), m.readBattery(), m.start())
 }
 
-// Update handles one message, in this order (the kit's): the size; a key (Ctrl+C, Help, a question, ?, the screen);
-// a Job's picture; the frame's scans and battery; builder C's messages; builder D's.
+// Update handles one message, in this order (the kit's): the size; a key (the lock, Ctrl+C, Help, a question, ?, the
+// screen); a Job's picture; the frame's scans and battery; the lock's own; builder C's messages; builder D's.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -114,6 +118,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case frameBatteryMsg:
 		m.battery, m.hasBattery = msg.percent, msg.ok
 		return m, m.after(batteryEvery, frameBatteryTickMsg{})
+	case LockMsg:
+		return m, m.lockNow()
+	case lockDarkMsg:
+		return m, m.lockDarken()
 	}
 	if cmd, ok := m.screenMsg(msg); ok {
 		return m, cmd
@@ -124,7 +132,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// key handles a key: Ctrl+C first, then Help if open, then a question, then ? (outside a text box), then the screen.
+// key handles a key: while locked only the lock sees it, and only as presses (lock.go); else a held Tab (in a
+// terminal) first, then Ctrl+C, then Help if open, then a question, then ? (outside a text box), then the screen. The
+// hold's first Tab is an ordinary press: it answers an open question no and closes Help before the lock comes.
 func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	if m.quit {
 		return nil
@@ -134,8 +144,21 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	m.yHeld = isY && !m.lastY.IsZero() && now.Sub(m.lastY) < heldYGap
 	if isY {
 		m.lastY = now
-	} else {
-		m.lastY = time.Time{}
+	}
+	held := m.lockTab(msg, now)
+	if m.lock.on {
+		if held != lockTabNone {
+			// A held Tab's repeats, the one that locked included, are not presses: they neither arm the unlock nor
+			// keep the page lit, as on the LCD, where internal/screen never sends them.
+			return nil
+		}
+		return m.lockKey(msg)
+	}
+	switch held {
+	case lockTabRepeat:
+		return nil // a held Tab acts once, as its first press
+	case lockTabHeld:
+		return m.lockNow()
 	}
 	if msg.Type == tea.KeyCtrlC {
 		return m.ctrlC()
@@ -157,9 +180,11 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	return m.screenKey(msg)
 }
 
-// ctrlC quits, asking first while a flash or a setup is under way (owner question 16: a setup asks too).
+// ctrlC quits at once, but asks y first while a flash runs (S20: stopping one can leave the board with no working
+// firmware). A setup being sent is stopped where it is, with no question (owner question 16): quitNow writes to
+// screen.log what the node has been sent and what it is left with, and internal/app adds how the setup ended.
 func (m *Model) ctrlC() tea.Cmd {
-	if m.job != nil && m.job.Kind() != flash.JobDownload {
+	if m.job != nil && m.job.Kind() == flash.JobFlash {
 		m.ask(confirmQuit)
 		return nil
 	}
@@ -214,12 +239,13 @@ func (m *Model) progress(p flash.Progress) tea.Cmd {
 	if m.job == nil || p.Job != m.job.ID() {
 		return nil
 	}
-	m.jobSeenAt = m.now()
+	m.jobSeenAt, m.lock.seen = m.now(), p
 	var wait tea.Cmd
 	if p.Done {
 		if k := m.job.Kind(); k == flash.JobFlash || k == flash.JobSetup {
 			m.busy--
 		}
+		m.lockJobDone(p)
 		m.job, m.help = nil, false
 		switch m.confirm {
 		case confirmStop, confirmQuit, confirmStopSetup:
@@ -252,23 +278,75 @@ func (m *Model) watch(j *flash.Job) tea.Cmd {
 		m.logf("meshflash: a second job was started while one ran; it was stopped")
 		return nil
 	}
-	m.job, m.jobSeenAt = j, m.now()
+	m.job, m.jobSeenAt, m.lock.seen = j, m.now(), flash.Progress{Job: j.ID(), Kind: j.Kind()}
 	if k := j.Kind(); k == flash.JobFlash || k == flash.JobSetup {
 		m.busy++
 	}
 	return m.waitFn(j, 0)
 }
 
-// quitNow ends the program: what's unsent saved, probes cancelled, the Job asked to stop (internal/app waits for
-// it, bounded, through Shutdown).
+// quitNow ends the program: what's unsent saved, probes cancelled, the Job asked to stop the safe way, with a line in
+// screen.log saying what that leaves the board with (internal/app waits for it, bounded, through Shutdown, and writes
+// how it ended).
 func (m *Model) quitNow() tea.Cmd {
 	m.SaveUnsent()
 	m.cancelProbes()
 	if m.job != nil {
+		m.logStop("quit")
 		m.job.Cancel()
 	}
 	m.quit = true
 	return tea.Quit
+}
+
+// logStop writes to screen.log, as a quit stops the running flash or setup, where it was and what stopping there
+// leaves the board with (the latest picture's Risk), so the log says it even if the Job doesn't finish before the
+// program ends; internal/app then adds how it ended (its Outcome's Summary, State and Recovery). A step's words never
+// hold a password (flash.Step.Text).
+func (m *Model) logStop(why string) {
+	k := m.job.Kind()
+	if k != flash.JobFlash && k != flash.JobSetup {
+		return
+	}
+	p := m.job.Snapshot()
+	if p.Done {
+		return
+	}
+	doing := lockVerbs[k]
+	if n := len(p.Steps); n > 0 {
+		at := fmt.Sprintf("step %d", n)
+		if p.Planned > 0 {
+			at += fmt.Sprintf(" of %d", p.Planned)
+		}
+		doing += " (" + at + ": " + p.Steps[n-1].Text + ")"
+	}
+	m.logf("%s: %s while %s: stopping it the safe way. %s", m.name, why, strings.ToLower(doing[:1])+doing[1:],
+		stopLeaves(k, p.Risk))
+}
+
+// stopLeaves says what stopping a flash or a setup now leaves the board with, by the picture's Risk.
+func stopLeaves(k flash.JobKind, r flash.Risk) string {
+	if k == flash.JobSetup {
+		switch r {
+		case flash.RiskNone:
+			return "Nothing had been saved on the node."
+		case flash.RiskSettings:
+			return "The node keeps the settings it took so far, still on its old radio: set it up again to finish."
+		case flash.RiskRadioSent:
+			return "Its new radio is saved but it hasn't restarted, so it stays on its old radio until it does: " +
+				"set it up again to finish, or restart it to switch."
+		}
+		return ""
+	}
+	switch r {
+	case flash.RiskNone:
+		return "Nothing had been written: the board keeps its old firmware."
+	case flash.RiskErased:
+		return "It has no working firmware until it is flashed again."
+	case flash.RiskWritten:
+		return "It was already written: only the check is skipped."
+	}
+	return ""
 }
 
 // SaveUnsent keeps what was typed and not sent (the Setup form) as a draft, so a quit, or the SIGTERM a held Esc
@@ -280,15 +358,19 @@ func (m *Model) SaveUnsent() {
 }
 
 // Shutdown is the end of the program, however it ended (internal/app calls it after Run returns: the model never
-// sees an Esc-hold's or a SIGTERM's quit): it saves what's unsent, clears Setup's passwords, cancels probes and the
-// running Job, and returns that Job (nil when none) so the app can wait a bounded time for it to stop and write how
-// it ended (its Outcome's State and Recovery) to screen.log.
+// sees an Esc-hold's or a SIGTERM's quit, locked or not): it saves what's unsent, clears Setup's passwords, cancels
+// probes and the running Job (with logStop's line, unless the model's own quit already wrote it), and returns that
+// Job (nil when none) so the app can wait a bounded time for it to stop and write how it ended (its Outcome's
+// Summary, State and Recovery) to screen.log.
 func (m *Model) Shutdown() *flash.Job {
 	m.SaveUnsent()
 	m.closeSetup()
 	m.cancelProbes()
 	j := m.job
 	if j != nil {
+		if !m.quit {
+			m.logStop("told to end (Esc held, or SIGTERM)")
+		}
 		j.Cancel()
 	}
 	return j
@@ -387,10 +469,6 @@ func (m *Model) mark() string {
 
 // statusLine is the title on the left and, on the right, the battery (on the LCD) and the board's mark.
 func (m *Model) statusLine(w int) string {
-	right := m.mark()
-	if m.showBattery && m.hasBattery && m.battery >= 0 {
-		right = fmt.Sprintf("%d%% %s", m.battery, right)
-	}
 	var title string
 	switch {
 	case m.help:
@@ -400,18 +478,31 @@ func (m *Model) statusLine(w int) string {
 	default:
 		title = m.screenTitle()
 	}
+	return m.statusLineTitled(w, title)
+}
+
+// statusLineTitled is the status line with title on the left (the lock page's is "<Name> · locked").
+func (m *Model) statusLineTitled(w int, title string) string {
+	right := m.mark()
+	if m.showBattery && m.hasBattery && m.battery >= 0 {
+		right = fmt.Sprintf("%d%% %s", m.battery, right)
+	}
 	title = cut(title, w-width(right)-1)
 	return title + strings.Repeat(" ", max(1, w-width(title)-width(right))) + right
 }
 
 // View draws the screen: the status line, the body, any message, and the key hints, exactly h lines of at most w
 // cells (S10). The body is cut from the bottom to fit, so each screen fits its own (a step list shows its end, a
-// long text scrolls): the frame never wraps or scrolls a body for it.
+// long text scrolls): the frame never wraps or scrolls a body for it. While locked it draws the lock page instead,
+// or nothing once that has gone dark (lock.go).
 func (m *Model) View() string {
 	if m.quit {
 		return ""
 	}
 	w, h := m.size()
+	if m.lock.on {
+		return m.lockView(w, h)
+	}
 	var msgLines []string
 	if m.confirm != noConfirm {
 		msgLines = wrap(m.confirmText(), w)
@@ -449,15 +540,18 @@ func (m *Model) View() string {
 	return strings.Join(lines, "\n")
 }
 
-// helpLines are Help's entries: the screen's keys ("key" padded to 15 runes, then what it does), Ctrl+C, then the
-// footer (S19: the name and version, the servers, the folders, the dialout command).
+// helpLines are Help's entries: the screen's keys ("key" padded to 15 runes, then what it does), the lock, Ctrl+C,
+// then the footer (S19: the name and version, the servers, the folders, the lock and the Esc hold, the dialout
+// command).
 func (m *Model) helpLines() (keys, footer []string) {
 	if m.screen == scrSetup {
 		keys = m.setupHelp()
 	} else {
 		keys = m.screenHelp()
 	}
-	keys = append(keys, "Ctrl+C         quit, from anywhere (asks first while flashing or setting up)")
+	keys = append(keys,
+		"hold tab       lock the screen (3 s); tab then enter unlocks",
+		"Ctrl+C         quit, from anywhere (asks first while flashing; a setup stops where it is)")
 	hint := m.scan.Hint
 	if hint == "" {
 		hint = usbid.DialoutHint
@@ -472,6 +566,7 @@ func (m *Model) helpLines() (keys, footer []string) {
 		"Keeps its settings in ~/.config/" + m.name + " and its catalog, files and screen.log in ~/.cache/" +
 			m.name + ".",
 		"Reads the messenger's radio from ~/.config/mesh/config.json; never writes it.",
+		m.lockHelp(),
 		"Serial ports need the dialout group. Run these once:",
 	}
 	footer = append(footer, strings.Split(hint, "\n")...)

@@ -15,15 +15,18 @@ import (
 	"os"
 
 	"meshflash/internal/flash"
+	"meshflash/internal/screen"
 	"meshflash/internal/store"
 	"meshflash/internal/ui"
 )
 
-// The real backend and store are what the screens take; the build stops here if either drifts from the screens'
-// interfaces.
+// The real backend and store are what the screens take, and the screens' model is what internal/screen asks whether
+// to go dark (the screen lock: ui can't import screen, so screen.Run finds Dark only by a type assertion, which would
+// fail quietly, leaving the LCD lit, if Dark were renamed); the build stops here if any of them drifts.
 var (
-	_ ui.Backend = (*flash.Backend)(nil)
-	_ ui.Store   = (*store.Store)(nil)
+	_ ui.Backend      = (*flash.Backend)(nil)
+	_ ui.Store        = (*store.Store)(nil)
+	_ screen.Dimmable = (*ui.Model)(nil)
 )
 
 // Program says which program this is: meshflash, or the demo build's meshflash-demo.
@@ -55,7 +58,11 @@ type Env struct {
 }
 
 // Main reads the flags (--version, --screen, --screen-test, --font, --framebuffer, --keyboard, --framebuffer-sys, as
-// the kit's) and runs the program; it exits with 1 on an error, which it also writes to screen.log.
+// the kit's, and meshflash's --backlight-sys: with --screen, a backlight folder holding brightness, for testing; ""
+// is the device's own when drawing on /dev/fb0 and none with any other --framebuffer) and runs the program; it exits
+// with 1 on an error, which it also writes to screen.log. Under --screen it gives screen.Run TabHeld: ui.LockMsg{}
+// (the screen lock's 3 s Tab hold) and the backlight folder; in a terminal it sets ui.Options.TerminalKeys
+// (docs/phase2-design.md 7.1 and 18).
 func Main(p Program) {
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
 		fmt.Println(p.Name, p.Version)

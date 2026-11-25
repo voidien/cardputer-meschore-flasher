@@ -9,7 +9,8 @@ Written 24 Nov 2026 from `docs/meshcore-flashing.md` (the research, every fact w
 app kit (`docs/standards.md` S1–S38, `docs/making-apps.md`, `docs/device.md` in the kit). Where this spec and the code
 disagree, the code wins: fix this file and add a line under "Changes to this spec".
 
-The owner's answers to the open choices (24 Nov 2026) are written in, and listed in section 11.
+The owner's answers to the open choices (24 and 25 Nov 2026) are written in, and listed in section 11.
+`docs/phase2-design.md` is the plan for the screens, and agrees with this file.
 
 ## 1. Goals and non-goals
 
@@ -46,11 +47,13 @@ Non-goals (for this version):
 | The file's own site: `https://flasher.meshcore.io/releases/download/<tag>/<file>?repo=<key>` (or `/firmware/<file>` for files the catalog lists inline), or the same paths on `zephcore.meshcore.dev` for ZephCore | only when the owner presses `d` (download) or `y` on a file not yet saved | HTTPS GET, the same User-Agent. Refuse an HTML body, a body shorter than its `Content-Length`, or one under 50 KB |
 | `https://github.com/meshcore-dev/MeshCore/releases/download/<tag>/<file>` | only when the flasher site fails for a MeshCore community file | the same; GitHub's `Content-Length` and MD5 header are checked too |
 | The board | while a screen that needs it is open | `/dev/ttyACM*`, `/dev/ttyUSB*` (needs the `dialout` group, 9.3) |
-| USB identity | when the Board screen opens or redraws after a plug-in | `/sys/class/tty/*` and the USB device above it, read-only, never opening the port |
+| USB identity | every second, on every screen, so the status line's mark follows the board | `/sys/class/tty/*` and the USB device above it, read-only, never opening the port |
 | `~/.config/mesh/config.json` | when the setup form opens | read-only; never written (8.4) |
+| The LCD's backlight | with `--screen` only, while the screen lock is dark (4) | its sysfs `brightness`, written 0 and then back to what it was, if meshflash may (checked in Phase 3); never touched when drawing anywhere but `/dev/fb0`: a run into a file may be given a fake folder for testing (`--backlight-sys`), and one under `/sys` is refused there |
 
-Nothing runs in the background (S23). No money is spent; Help says how much a catalog update downloads (about 1.5 MB)
-and each file's size.
+Nothing runs in the background (S23): the every-second USB read is sysfs only, opens nothing and goes nowhere. No money
+is spent; Help says how much a catalog update downloads (about 1.5 MB), and a file's size shows once it is known
+(downloading, saved): the catalog lists none.
 
 The User-Agent names meshflash and its version, as S3 wants, inside the browser form that MeshCore's FAQ (5.13) says
 the flasher site needs before it serves a whole file: a departure from S3's exact form, agreed with the owner.
@@ -63,19 +66,28 @@ Board ─enter→ Choose board ─enter→ Role ─enter→ Version ─enter→ 
   ├─ u  Update catalog (Wi-Fi)                                                                  └─ s → Setup
   ├─ s  Set up a board already running repeater or room-server firmware (no flash)
   └─ c  Saved files
+
+Any screen ─Tab held 3 s→ locked ─any key, then Tab, then Enter→ the same screen
 ```
 
 ## 4. Screens
 
 Designed at 45×10 (the CLI app); the same screens at 53×14 on the LCD get more rows of list and text, and still work
 at 40×10 (S10). The top line is the status line (S13): the screen's subject on the left; on the right the battery
-(LCD only) and the board's mark: `●` a board is plugged in and identified, `○` none, `…` busy talking to it. The
-bottom line is the key hints (S12). Text wraps (S11). The mock-ups are close to, not exactly, what
-the goldens will hold.
+(LCD only) and the board's mark: `…` while meshflash talks to a board; else, on a screen about one board, `●` while
+that board is plugged in and identified by its USB identity and `○` when it isn't (Board: the selected port; Choose
+board to Flashing: the board picked; Result and Setup: the board as it is now); on Update catalog and Saved files, `●`
+when any board is plugged in. The bottom line is the key hints (S12). Text wraps (S11); at 40×10 long step lists fold
+their oldest steps into "✓ 3 earlier steps", and Result's and Setup's end scroll with `j`/`k`, what to do now kept in
+view. The selected row starts with `▸`; group headings ("MeshCore", "All boards:", Help's "Keys") are in reverse
+video. The mock-ups are close to, not exactly, what the goldens hold.
 
 **Board** (start screen). Every plugged-in serial port, what its USB identity suggests, and what it's running when that
 is known; the catalog's age. When a port appears and isn't a bootloader, meshflash asks it `ver`, `get role` and
-`board` (read-only; repeater and room-server firmware answer, others stay silent within 2 s) and shows the answer.
+`board` (read-only; repeater and room-server firmware answer, others stay silent within 2 s) and shows the answer;
+from a repeater or room server it then reads its name with read-only `get`s (never the guest password). An nRF52 in
+its bootloader is never opened: "In its bootloader, ready to flash.", or why a double press of reset is needed first.
+A port another program holds says so. A USB bridge is named by its chip family ("CP210x").
 
 ```
 meshflash                              87% ●
@@ -83,7 +95,7 @@ meshflash                              87% ●
   Could be: Xiao nRF52 WIO, Ikoka Stick,
   Ikoka Nano. Running repeater v1.17.1,
   “Hilltop 2”.
-  ttyUSB0 · CP2102 (10c4:ea60)
+  ttyUSB0 · CP210x (10c4:ea60)
 
 Catalog from 24 Nov: newest v1.18.0
 enter choose  u update  c files  ? help
@@ -91,15 +103,19 @@ enter choose  u update  c files  ? help
 
 With no board: "Plug a LoRa board into the USB-A port." With no catalog yet: "No catalog saved. Join Wi-Fi and press
 u." With no permission to open ports: the exact `sudo` command (9.3). When more than three boards match a port's USB
-identity, the port says how many ("Could be one of 27 boards") rather than listing them. A node that echoes what it's sent but answers
-nothing (stuck in the middle of a command) says so: "press its reset button (or unplug it if it has no battery) and
-press r". The probe never sends anything that could change the node, not even the blank line that would unstick it.
+identity, the port says how many ("Could be one of 27 boards") rather than listing them. A node that echoes what it's
+sent but answers nothing (stuck in the middle of a command) says so: "press its reset button (or unplug it if it has no
+battery) and press r". The probe never sends anything that could change the node, not even the blank line that would
+unstick it. `s` sets up a port that answered as a MeshCore repeater or room server (never ZephCore); on any other a
+note says why not.
 
-**Choose board.** The best matches first, then "All boards": the board the node itself names when it answers
-`board`; then the boards the USB table is sure of for this identity; then, under "Might also be (unverified)", the
-boards it only infers. Each group is in catalog order. The owner always picks. The cursor starts on the board picked
-last time for this USB serial number (remembered, 8), else on the only match when there is exactly one; it is never
-chosen for them.
+**Choose board.** The best matches first: the board the node itself names when it answers `board`; then the boards
+the USB table is sure of for this identity; then, under "Might also be (unverified)", the boards it only infers; then
+"All boards", every board not already above. Each group is in catalog order. Boards
+meshflash can't flash on this port are listed grey with why ("Raspberry Pi Pico W · download only", "LilyGo T-Lora C6
+· ESP32-C6", "RAK WisBlock 4631 · nRF52" on an ESP32's port), and Enter on one says why. The owner always picks. The
+cursor starts on the board picked last time for this USB serial number (remembered, 8), else on the only match when
+there is exactly one; it is never chosen for them.
 
 ```
 Which board is on ttyACM0?             87% ●
@@ -119,11 +135,14 @@ j/k move  enter pick  f find  ? help
 **Role.** The roles this board has with at least one version, in three groups: MeshCore (Repeater, Room server,
 Companion · Bluetooth, Companion · USB, KISS modem); ZephCore, marked "third-party port" (from its own catalog, matched
 to the board by name; ZephCore-only boards appear in Choose board with only these); Ripple, marked "closed source,
-third-party" (GUI, GUI with data on SD). The catalog's notice for the board is shown as plain text, links dropped,
-including the T1000-E LoRaWAN warning that the web flasher never shows.
+third-party" (GUI, GUI with data on SD). A role is named by the catalog's title and subtitle ("Companion ·
+Bluetooth"). The selected role's notices are shown above the list as plain text, links dropped, including the T1000-E
+LoRaWAN warning that the web flasher never shows.
 
-**Version.** Newest first, with "saved" and its size when the file is on the SD card. `n` (or Enter on a version)
-shows its release notes, wrapped and paged with `j`/`k`/Space/`b`.
+**Version.** Newest first, with "saved" and its size when the file is on the SD card; an ESP32 version, which has two
+files, says which: "update saved · 361 KB", "wipe saved · 1.3 MB" or "both saved". Enter goes to Confirm; `n` shows
+the release notes, wrapped and paged with `j`/`k` (two lines) and Space/`b`; `d` downloads without flashing (an ESP32
+version's both files, so update and full wipe both work offline later).
 
 ```
 Repeater · Xiao nRF52 WIO              87% ●
@@ -153,13 +172,21 @@ plug the Zero in if you can.
 y flash  esc back  ? help
 ```
 
-Under 30% battery the screen says so and `y` asks once more ("Battery 24%. Flash anyway? y"). A file not yet saved
-is downloaded first (Wi-Fi needed), with its progress and size, then the Confirm screen shows again with its SHA-256.
+Under 30% battery, or when the battery can't be read, the screen says so and a `y` that would flash asks once more
+("Battery 24%. Flash anyway?", "Battery level unknown. Flash anyway?"). An nRF52 board whose SoftDevice the catalog
+doesn't name (T-Echo, Wio Tracker L1 EINK, ThinkNode M1, Nano G2 Ultra) says what that risks and asks a second `y` the
+same way. A held `y` answers nothing: a `y` less than 0.5 s after the previous `y` is ignored and the question stays,
+so release and press again. A file not yet saved reads "Repeater v1.18.0 · update · not saved yet" and `y` downloads
+it first (Wi-Fi needed), with its progress and size; then the Confirm screen shows again with its SHA-256, and `y`
+flashes. When the board is unplugged the screen says so and `y` does nothing.
 
 **Flashing.** Each step with a mark (`✓` done, `▸` now), the bytes written, and how long it's taken (S17). It says
-"Don't unplug the board." Esc asks before stopping ("Stop now? The board will have no working firmware until it's
-flashed again. y stops"). When the board vanishes or stops answering, the screen moves on at once to the result; it
-never stays on "Flashing" (S16).
+"Don't unplug the board." Esc asks before stopping, in words that say what stopping leaves: "Stop now? Nothing has
+been written yet: the board keeps its firmware.", "Stop now? The board will have no working firmware until it's
+flashed again.", "Stop now? It's already written; meshflash just won't check it." Ctrl+C asks the same, ending "…and
+meshflash quits.". When the board vanishes or stops answering, the screen moves on at once to the result; it never
+stays on "Flashing" (S16). If meshflash itself crashes, or the CLI app's terminal closes, mid-flash, the flash
+finishes with no screen (up to about 3 minutes) and `screen.log` says how it ended (8).
 
 ```
 Flashing Repeater v1.18.0              87% …
@@ -174,33 +201,41 @@ esc stop  ? help
 ```
 
 **Result.** On success: what was written and how it was checked (ESP32: MD5 of the flash matches the file; nRF52: the
-board checked the CRC and came back running the new version), then `s` to set it up (repeater and room server). On
+board checked the CRC and came back running the new version; for nRF52 firmware with no console (companion, KISS,
+ZephCore, Ripple), "Flashed" once the bootloader took the image and left, saying whether the board came back on USB and
+that meshflash can't ask this firmware its version), then `s` to set it up (MeshCore repeater and room server). On
 failure: what state the board is in, in plain words, and how to recover it (from `docs/meshcore-flashing.md` §10),
-with `r` to try again from the saved file (no Wi-Fi needed).
+with `r` to try again from the saved file (no Wi-Fi needed): back to Confirm with the board and version kept; on an
+ESP32 the kind is cleared (`u` or `w` again, then `y`), an nRF52 goes straight to `y`. After an nRF52 stopped
+part-way, Result says "Press r; meshflash then asks you to press reset twice quickly." and Flashing waits for that
+double press (asking again if meshflash didn't see it). The state and what to do stay in view while the rest scrolls;
+Enter and Esc go back to Board.
 
 ```
 Flashing stopped                       87% ○
 The board stopped answering while writing
-(212 of 361 KB). Its old firmware is erased.
-To recover: press the board's reset button
-twice quickly, then press r. The file is
-saved, so no Wi-Fi is needed.
-
+(212 of 361 KB).
+Its app is erased.
+Press r; meshflash then asks you to press
+reset twice quickly.
+Press r to try again: the file is saved, so
+no Wi-Fi is needed.
 r retry  esc back  ? help
 ```
 
-**Setup** (repeater and room server only). A form, one field per row; Tab or `j`/`k` moves, Enter edits a field.
+**Setup** (MeshCore repeater and room server only, never ZephCore). A form, one field per row; Tab or `j`/`k` moves,
+Enter edits a field; the form scrolls to keep the field in view.
 
 | Field | Default | Checks before sending |
 | --- | --- | --- |
 | Name | the node's current name, or empty | 1–23 bytes; none of `[ ] / \ : , ? *`; no leading or trailing space |
 | Frequency, Bandwidth, Spreading factor, Coding rate (four rows) | your messenger's settings when `~/.config/mesh/config.json` has them (8.4); otherwise the last radio meshflash sent; otherwise the node's current values. Enter on Frequency opens a text box, on the other three a pick list of the allowed values. `p` lists MeshCore's presets (a copy built into meshflash, 7) and fills all four, and the path hash mode | only the bandwidths the radio accepts (7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500 kHz); frequency within the firmware's range; SF 5–12; CR 5–8 |
-| TX power | the node's current value | −9 dBm (the radio's minimum) up to the board's limit: MeshCore FAQ 7.7's values for amplified boards (Station G2, Ikoka E22-30S/33S, Heltec V4), 22 dBm for the rest; an Ikoka whose `board` reply and catalog name don't say which module it has gets 9, the safest of its modules |
-| Path hash mode | from the preset (size − 1), else the node's current value; 1, 2 or 3 bytes | firmware v1.14.0 or newer; the row says "needs v1.14+" otherwise |
+| TX power | your messenger's `tx_dbm` (8.4), else the last TX power meshflash sent, else the node's current value; capped at the board's limit, with a note when it was | -9 dBm (the radio's minimum; an ASCII hyphen on screen) up to the board's limit: MeshCore FAQ 7.7's values for amplified boards (Station G2, Ikoka E22-30S/33S, Heltec V4), 22 dBm for the rest; an Ikoka whose `board` reply and catalog name don't say which module it has gets 9, the safest of its modules |
+| Path hash mode | from the preset whose radio the form starts with (size − 1), else the last sent, else the node's current value; 1, 2 or 3 bytes | firmware v1.14.0 or newer; the row says "needs v1.14+" otherwise |
 | Latitude, longitude | the node's current values; blank sends nothing | −90…90, −180…180 |
 | Local advert | the node's current value: off, or every 60–240 minutes (the first setting saved turns off a new node's 2-minute local advert, so 1–59 shows as off) | 0, or 60–240 in even minutes (the node stores half the minutes and would round an odd value down) |
-| Admin password | empty: you must type one | 1–15 bytes, no leading or trailing space. Shown as `•`, never saved, never logged, cleared when the screen closes |
-| Guest password (room server only) | the node's current value | 1–15 bytes, always sent: a build's default is `hello` or blank, and a blank one lets anyone in |
+| Admin password | empty: you must type one | 1–15 bytes, no leading or trailing space. The row shows `••••` whatever its length, the text box one `•` per character; never saved, never logged, cleared when the screen closes and after sending |
+| Guest password (room server only) | the node's current value | 1–15 bytes, always sent: a build's default is `hello` or blank, and a blank one lets anyone in. Shown as `••••` like the admin password |
 
 `y` sends it: one command at a time, each line ending in CR, waiting for its `  -> ` reply; then reads every value
 back and compares (numbers numerically); then `reboot`, waits for the board to come back, and checks `ver` and
@@ -208,21 +243,60 @@ back and compares (numbers numerically); then `reboot`, waits for the board to c
 commands the CLI reference documents for the firmware version it reads with `ver` (`docs/meshcore-flashing.md`
 §7.5). When a step fails or the board goes away, the screen also says what the node is left with: nothing changed,
 the settings before that step saved (and this one perhaps), or everything saved but not rebooted, and whether it is
-still on its old radio until it restarts.
+still on its old radio until it restarts; `r` then goes back to the form with its values (the passwords typed again).
+Esc while sending asks `y` before stopping, in words that say what the node keeps. Ctrl+C while sending quits at once,
+without asking: the setup stops where it is (between two commands), and `screen.log` says what the node was sent,
+what it is left with (its radio saved but not rebooted: still on the old radio until it restarts, say) and how to
+finish. What was typed and not sent is kept per board (8) and comes back when the form reopens: "Restored what was
+typed for the board on this USB socket." for a board with no useful serial number.
 
 **Update catalog** (`u`): "Fetching the catalog… (0:03)", then "72 boards, newest v1.18.0, 1.6 MB" (70 MeshCore
-boards and 2 that only ZephCore has). On failure the
-saved catalog stays and the screen says why (no Wi-Fi, HTTP status).
+boards and 2 that only ZephCore has). Esc while fetching stops it. On failure, or a stop, the saved catalog stays and
+the screen says why (no Wi-Fi, HTTP status).
 
 **Saved files** (`c`): each saved file with its board, role, version, size and date; `x` deletes one after `y` (S20).
 
-**Help** (`?`): every key of the screen it was opened from, meshflash's version, the servers (`flasher.meshcore.io`,
-`zephcore.meshcore.dev`, GitHub as the fallback), the folders it uses, and the `dialout` command.
+**Help** (`?`): every key of the screen it was opened from, the screen lock ("hold tab"), Ctrl+C, meshflash's version,
+the servers (`flasher.meshcore.io`, `zephcore.meshcore.dev`, GitHub as the fallback), that it reads Linux's USB list
+every second and opens a port only to ask a board on the Board screen what it runs, the folders it uses, the
+messenger file it reads and never writes, what the lock does and that holding Esc 3 s still ends meshflash, locked
+or not, in the CLI app as on the LCD, and the `dialout` commands ("Run these once").
+
+**Screen lock** (any screen; the owner's request, 25 Nov 2026). Holding Tab 3 s locks meshflash: every key is then
+ignored but the unlock, and a flash, a setup or a download carries on. The lock page shows meshflash's status line, what
+is running and how long its step has run (S17: "Flashing · 42% (0:38)", "Setting up · step 4 of 20 (0:03)"), or the
+screen's name when nothing runs, or how a flash or setup ended when it ended while locked, and how to unlock. A few
+seconds (5 s) after locking, and after each key since, the screen goes dark: on the LCD the backlight off where
+meshflash may switch it (else the screen drawn black), in the CLI app a blank screen. Unlocking is the home screen's:
+any key wakes the screen, then Tab, then Enter. Nothing locks by itself. Holding Esc 3 s still ends meshflash, locked or
+not, on the LCD and in the CLI app alike: the launcher does that, and meshflash can't stop it; a flash or setup under
+way is stopped the safe way and `screen.log` says what the board is left with. The CardputerZero's own lock is the home
+screen's ("Hold TAB on the HOME screen…", its guide's section 4), which can't act while an app started from it runs, so
+meshflash has its own.
+
+```
+meshflash · locked                      87% …
+
+
+
+            Flashing · 42% (0:38)
+
+
+
+
+Tab then Enter to unlock
+```
 
 ## 5. Keys
 
-Outside text boxes every action is one plain key (S18); `j`/`k` and the arrows (Fn+F/Fn+X) always move; a tap on Esc
-goes back (on Board, it quits); `?` is Help; Ctrl+C quits from anywhere (asking first while flashing).
+Outside text boxes every action is one plain key (S18), but one: holding Tab 3 s locks the screen (4), a held key the
+owner asked for, departing from S18. A Tab press acts once as Tab before the lock (in a Setup text box, the next field;
+with a question open, it answers no, and it closes Help), and a held Tab never acts as more Tabs, before the lock or
+after it. In the CLI app, which never says when a key is let go, a Tab less than 0.5 s after the previous Tab counts as
+the held Tab repeating, so two Tabs pressed that quickly act as one there (11). `j`/`k` and the arrows (Fn+F/Fn+X)
+always move; a tap on Esc goes back (on Board, it quits); `?` is Help; Ctrl+C quits from anywhere, asking `y` first
+while flashing; a setup being sent is stopped where it is, with no question. A held `y` answers nothing (4, Confirm).
+Locked, no key does anything but the unlock.
 
 | Screen | Keys |
 | --- | --- |
@@ -230,13 +304,17 @@ goes back (on Board, it quits); `?` is Help; Ctrl+C quits from anywhere (asking 
 | Choose board | `enter` pick, `f` find |
 | Role | `enter` pick |
 | Version | `enter` next, `n` notes, `d` download only |
-| Notes | `j`/`k` line, Space/`b` page |
-| Confirm | `u` update, `w` full wipe (ESP32), `y` flash |
+| Notes | `j`/`k` two lines, Space/`b` page |
+| Confirm | `u` update, `w` full wipe (ESP32), `y` flash (downloads first when not saved) |
 | Flashing | `esc` stop (asks `y`) |
-| Result | `s` set up, `r` retry, `enter` back to Board |
-| Setup | Tab/`j`/`k` field, `enter` edit, `p` preset list, `y` send |
+| Result | `s` set up, `r` retry, `j`/`k` two lines, `enter` or `esc` back to Board |
+| Setup | Tab/`j`/`k` field, `enter` edit, `p` preset list, `y` send; sending: `esc` stop (asks `y`); failed: `r` back to the form |
+| Update catalog | `esc` stop while fetching, `u` try again, `enter` back |
 | Saved files | `x` delete (asks `y`) |
+| Help | `j`/`k` two lines, Space/`b` page, any other key back |
 | Text box | Enter keep, Esc cancel, Tab next field, Backspace (S21) |
+| Any screen | Tab held 3 s: lock |
+| Locked | any key wakes the screen; then Tab, then Enter unlocks; nothing else |
 
 ## 6. Flashing rules
 
@@ -247,8 +325,13 @@ goes back (on Board, it quits); `?` is Help; Ctrl+C quits from anywhere (asking 
   anything else and say why.
 - Check the saved file's SHA-256 against the one recorded at download, every time.
 - Never write the catalog's `erase` or `bootloader` files; never offer "Erase Flash" or "Enter DFU mode" on their own.
-- Warn and ask under 30% battery.
+- Match the board picked to the port's chip family (ESP32 or nRF52) before anything touches it; a board that doesn't
+  fit is refused with nothing sent.
+- Warn and ask under 30% battery, and when the battery can't be read.
+- Open every port for probing, flashing and setup exclusively (TIOCEXCL), so nothing else can open it mid-flash.
 - Follow the board across resets by its USB serial number or USB path, never by tty name alone.
+- Leave a tty touched at 1200 baud at 115200 when the flash ends, however it ends, so the next program to open and
+  close it doesn't reboot the board into its bootloader.
 - When the board is unplugged or stops answering, say what state it's in and how to recover it (§10 of the research),
   and leave the Flashing screen.
 
@@ -290,7 +373,12 @@ As the web flasher does (`lib/dfu.js`, byte-identical to adafruit-nrfutil): the 
   never taken for the bootloader.
 - Do the touch so it works on Linux (exclusive open, DTR dropped at 1200), then wait up to 10 s for the bootloader to
   appear with the same USB serial number, and send START only to a port positively identified as the bootloader
-  ("nRF Serial"). A board already in its bootloader (double-pressed reset) is used without a touch.
+  ("nRF Serial"). A board already in its bootloader (double-pressed reset) is used without a touch, if meshflash saw
+  its bootloader appear in this run; one already there when meshflash started may hold a session a stopped flash
+  left, so its flash first asks for a double press of reset.
+- Never send START into a bootloader session that already had one (after a failure past START, a stop, a quit): a
+  retry asks for reset pressed twice quickly and waits up to 60 s for the bootloader to go and come back (a fresh
+  session), asking again if it didn't see it. Nothing about it is saved across runs.
 - Resend a frame (same sequence number) up to twice when its ACK doesn't come in 5 s; the bootloader drops duplicates.
 - After STOP, wait up to 15 s for the app to come back with the same serial number; on repeater and room-server
   firmware, check `ver` names the version just flashed (the board's CRC failure is otherwise silent). When the port
@@ -317,11 +405,14 @@ All files are the owner's (0600 in 0700 folders), under its own name (S2).
 
 | File | What |
 | --- | --- |
-| `~/.config/meshflash/config.json` | the last radio settings sent (frequency, bandwidth, SF, CR, TX power, path hash mode; never a password), and the catalog board picked for each USB serial number (serial → board name, nothing else) |
-| `~/.config/meshflash/drafts.json` | an unsent setup form per board serial number, without passwords (S7) |
+| `~/.config/meshflash/config.json` | the last radio settings sent (frequency, bandwidth, SF, CR, TX power, path hash mode; never a password), and the catalog board picked for each USB serial number (serial → board name, nothing else; nothing for a board with no useful serial number). Nothing about a flash that was stopped or cut short |
+| `~/.config/meshflash/drafts.json` | an unsent setup form per board, without passwords (S7): kept by the board's USB serial number, or, for a board with no useful one (a CH340, a CP210x saying "0001"), by its USB socket and identity ("usb 1-1.2 10c4:ea60"); the rows the owner emptied are kept as emptied |
 | `~/.cache/meshflash/catalog/` | `config.json`, `config-zephcore.json` and each `releases-<key>.json`, as fetched, with the time |
 | `~/.cache/meshflash/files/` | each downloaded file under its catalog name, and `index.json`: name, URL, size, SHA-256, when |
-| `~/.cache/meshflash/screen.log` | what went wrong, started afresh each run (S5). Never a password |
+| `~/.cache/meshflash/screen.log` | what went wrong, started afresh each run, in the CLI app too (S5); after a quit, an Esc hold or SIGTERM that stopped a flash or setup, what the board was sent and is left with and how to recover or finish; after a crash or a closed terminal mid-flash, which lets the flash finish with no screen (up to about 3 minutes), how it ended. Never a password |
+
+The formats of `config.json` and `drafts.json` are `internal/store/types.go`'s. A damaged `config.json` reads as empty;
+one that can't be read is skipped, with a line in `screen.log`.
 
 ### 8.4 The messenger's radio settings (read-only)
 
@@ -347,8 +438,10 @@ messenger app that wants meshflash to offer its settings writes this. `docs/mess
 
 ### 9.1 Code
 
-Go 1.25, Bubble Tea v1, module `meshflash`. From the kit: `internal/screen` copied whole; `internal/app` and
-`internal/store` in shape; `internal/ui/text.go`, `editor.go` and the test driver. New:
+Go 1.25, Bubble Tea v1, module `meshflash`. From the kit: `internal/screen` copied whole, then changed in three places
+(its package doc lists them: the `--screen-test` page names meshflash and shows its glyphs; the screen lock's Tab hold;
+the backlight while the lock is dark); `internal/app` and `internal/store` in shape; `internal/ui/text.go`,
+`editor.go` and the test driver. New:
 
 | Package | What |
 | --- | --- |
@@ -358,9 +451,16 @@ Go 1.25, Bubble Tea v1, module `meshflash`. From the kit: `internal/screen` copi
 | `internal/esp` | SLIP, ROM and stub commands, reset sequences, compressed write, MD5 |
 | `internal/nrfdfu` | the DFU ZIP and init packet, HCI/SLIP frames, the 1200-baud touch, the transfer |
 | `internal/nodecli` | the MeshCore serial CLI: `ver`, setup, read-back, version gates |
-| `internal/flash` | one flash from start to end as steps, with what state a failure leaves the board in |
-| `internal/ui` | the screens (no network or serial code in it) |
+| `internal/flash` | the orchestration the screens ask: scan, probe, catalog, downloads, prepare, one flash from start to end as steps (with what state a failure leaves the board in), read a node, setup; the only Phase 2 package doing serial I/O |
+| `internal/flash/fakeworld` | a fake world of boards, flasher sites, battery and clock, for the end-to-end tests and the demo build |
+| `internal/store` | `config.json` and `drafts.json` (8) |
+| `internal/ui` | the screens and the screen lock (no network or serial code in it) |
+| `internal/app`, `cmd/meshflash` | the flags, the wiring, `screen.log`, the shutdown |
 | `reference/` | the Node harnesses that run the web flasher's own JavaScript against fake ports, and their recordings |
+
+The demo build (`go build -tags demo`, `make demo`) is a separate binary, `meshflash-demo`, with its own folders, a
+fake world and the committed catalog, for trying the screens on a PC with no board and no network (`make run-small`
+runs it at 45×10); the release binary `dist/meshflash` links no fake (`make test` checks). `make icon` draws the icon.
 
 ### 9.2 Install
 
@@ -400,8 +500,11 @@ Rastislav Vysoky), the DFU code (BSD-3-Clause, Nordic Semiconductor, through `li
   the reference's compressed stream; production uses Go's `compress/zlib`) and the added MD5 and status checks.
 - `js/catalog.js` run in Node over the saved catalog and releases gives the resolution golden the Go catalog must
   match.
-- Goldens of every screen at 53×14, 45×10 and 40×10 through the LCD parser (S10, S28); race tests; `gofmt`; arm64 vet
-  (S31).
+- Goldens of every screen at 53×14, 45×10 and 40×10 through the LCD parser (S10, S28), the lock page's too; race
+  tests; `gofmt`; arm64 vet (S31).
+- The screens' tests run on the test driver's own clock, timers and Job waits, and `internal/screen`'s held keys on a
+  virtual clock: no real sleeps, but the kit's SIGTERM test's 200 ms in a child process and the copied
+  `internal/screen` tests of the kit's own. No test touches a real backlight: a fake sysfs folder or none.
 - S29 ("every route against the real server") becomes: every route against `httptest` serving the saved live copies,
   since tests never touch the network. The real site is first used on the device, with the owner.
 
@@ -440,6 +543,35 @@ Asked as multiple choice with a recommendation first; answered 24 Nov 2026.
 | Remember the board (Phase 2) | **yes, per USB serial number**, preselected next time and still confirmed |
 | Radio on the Setup form (Phase 2) | **four rows**: Frequency, Bandwidth, Spreading factor, Coding rate |
 
+The Phase 2 plan's questions (`docs/phase2-design.md` section 16), answered 25 Nov 2026:
+
+| Choice | Answer |
+| --- | --- |
+| The node's name on the Board screen (1) | **shown**: read with read-only commands right after a repeater or room server answers, never the guest password |
+| "saved" on the Version list for an ESP32 version (2) | **say which**: "update saved · 361 KB", "wipe saved · 1.3 MB", "both saved" |
+| `d` on an ESP32 version (3) | **both files** |
+| `r` after a failed flash (4) | **back to Confirm**, board and version kept; on an ESP32 the kind cleared (`u` or `w` again, then `y`); an nRF52 straight to `y` |
+| A held `y` (5) | **ignored**: a `y` less than 0.5 s after the previous `y` answers nothing and the question stays, for every `y` question (Confirm, battery, SoftDevice, Setup) |
+| TX power and path hash defaults (6) | TX power **the messenger's, else the last sent, else the node's**, capped at the board's limit with a note; path hash **the preset's, else the last sent, else the node's** |
+| nRF52 firmware meshflash can't ask its version (7) | **"Flashed"** when the bootloader took the image and left; Result says whether the board came back on USB and that meshflash can't ask this firmware its version |
+| ESP32-C6 boards (8) | **listed grey**, marked "ESP32-C6", refused before any download |
+| Esc held or the launcher's SIGTERM during a flash (9) | **stop the flash the safe way at once**, write the board's state and how to recover it to `screen.log`, exit; nothing new in `config.json` |
+| The `--screen-test` page (10) | **names meshflash and shows every glyph it uses**, a departure from the kit's copy |
+| The font for the PC run into a file (11) | **a stand-in 6×12 bitmap font** made in the scratchpad from one fetched through the Go module proxy (never in `go.mod`), so PC frames are 53×14; the real Terminus first in Phase 3 |
+| Selected row and headings (12) | **`▸` on the selected row**, group headings in reverse video |
+| Drafts for boards with no useful USB serial (13) | **kept by USB socket and identity** ("usb 1-1.2 10c4:ea60"); the form says "Restored what was typed for the board on this USB socket." |
+| The other screen and key details (14) | **all ten approved** as written |
+| `j`/`k` in Notes, Help and Result (15) | **two lines** |
+| Ctrl+C while a setup is being sent (16) | **quit at once, without asking** (not the recommendation): the setup stopped the safe way, `screen.log` saying what the node was sent, what state it is in and how to finish; Esc while sending still asks `y` |
+| Retrying an nRF52 flash that stopped part-way (17) | **no Phase 1 change**: Result says "Press r; meshflash then asks you to press reset twice quickly."; after `r` and `y`, Flashing asks for the double press and waits (asking again if it wasn't seen) |
+| An nRF52 already in its bootloader at start (18) | **fresh only if meshflash saw it appear in this run**; otherwise a double reset press is asked for when flashing it |
+| A crash, or the CLI app's terminal closing, mid-flash (19) | **let the flash finish** with no screen (up to about 3 minutes), how it ended written to `screen.log` |
+| nRF52 boards whose SoftDevice the catalog doesn't name (20) | **Confirm says so and asks a second `y`**, as for a low battery |
+| A screen lock (asked for with 9) | **hold Tab 3 s to lock**, on every screen, as the CardputerZero's home screen does; locked, every key is ignored but the unlock |
+| The lock's look | **dark a few seconds after locking** (and after each wake); any key lights a lock page: the status line, what is running ("Flashing · 42%", "Setting up · step 4 of 20", or the screen's name) and "Tab then Enter to unlock"; the backlight off if meshflash may (checked in Phase 3), else drawn black |
+| Unlocking | **as the home screen**: any key wakes the screen, then Tab, then Enter |
+| Auto-lock | **none**: it locks only on a Tab hold |
+
 Decided without asking (technical defaults; the owner can overrule any):
 
 - ESP32 at 115200 baud like the reference (native-USB boards such as the Heltec v4 go at USB speed anyway).
@@ -448,6 +580,14 @@ Decided without asking (technical defaults; the owner can overrule any):
 - nRF52: resend an unacknowledged frame up to twice; after flashing, wait for the board to come back and check `ver`.
 - The setup console sends CR line endings and clean values (as MeshCore's config tool does), not the reference
   console's CR LF.
+- The screen lock's timings: the lock page stays lit 5 s after locking and after each key; its middle line shows how
+  long the running step has run ("Flashing · 42% (0:38)"), as S17 asks of every wait. A held key is taken to repeat
+  every 33 ms after 250 ms (Linux's default; measured in Phase 3). In the CLI app, which sends a held key again and
+  again and never its release, a Tab less than 0.5 s after the previous Tab is the held Tab repeating, so two Tabs
+  pressed less than 0.5 s apart act as one there (on the Setup form the second moves nothing; on the lock page, Tab
+  pressed that quickly after the Tab that woke it doesn't arm the unlock). The same 0.5 s marks a held `y` (5).
+- The Tab press that starts a hold is an ordinary press: an open question takes it as "no" (the safe answer) and Help
+  closes, before the lock.
 
 ## 12. Phases
 
@@ -476,3 +616,31 @@ Each phase ends with a report and a stop.
 - 24 Nov 2026: the owner's Phase 1 and Phase 2 answers (11): Choose board's order and the remembered board, the
   Board screen's count for long lists, four radio rows on the Setup form, the board picked per USB serial number saved
   in `config.json`, and the icon.
+- 25 Nov 2026: the owner's answers to the Phase 2 plan's twenty questions (11), all as recommended but Ctrl+C while a
+  setup is being sent, which quits at once without asking (4 Setup, 5). Written in: the Board screen shows the node's
+  name (4); which ESP32 file is saved, and `d` fetching both (4 Version); `r` after a failed flash (4 Result); a held
+  `y` answers nothing (4 Confirm, 5); the Setup form's TX power and path hash defaults (4 Setup); "Flashed" for nRF52
+  firmware with no console (4 Result); a second `y` for an nRF52 whose SoftDevice the catalog doesn't name (4
+  Confirm); the nRF52 retry and an nRF52 already in its bootloader at start (6.3); drafts kept by USB socket for a
+  board with no useful serial, and nothing saved about a stopped flash (8); `j`/`k` two lines (5); a crash or a closed
+  terminal mid-flash lets the flash finish, logged (4 Flashing, 8).
+- 25 Nov 2026: the screen lock, the owner's request: Tab held 3 s locks; dark a few seconds later; any key, then Tab,
+  then Enter unlocks; no auto-lock; the launcher's Esc hold still ends meshflash (2, 3, 4, 5, 10, 11). A held key is a
+  departure from S18, which the owner asked for (5). `internal/screen` departs from the kit's copy for it and for the
+  test page (9.1).
+- 25 Nov 2026, from the Phase 2 plan (`docs/phase2-design.md` 14), agreed with the owner's answer to its question 14:
+  Enter on Version goes to Confirm and `n` shows the notes (4 said Enter showed them too); the status line's mark is
+  defined, and the USB list is read every second on every screen (2, 4); Board doesn't open a bootloader, says when
+  another program holds a port, offers `s` only on a repeater or room server, and names a bridge "CP210x" (4); Choose
+  board's "All boards" and its grey boards (4); Role's title and subtitle, and its notices above the list (4); Confirm
+  shows again after a download, asks when the battery can't be read, and says when the board is unplugged (4); "Stop
+  now?" says what stopping leaves (4 Flashing); Result's Esc and pinned state, and the new mock-up (4); Setup's Esc
+  while sending, `r` after a failure, `••••` for both passwords and the ASCII "-9 dBm" (4); Update catalog's Esc while
+  fetching (4); long text at 40×10 folds or scrolls (4); Help's footer (4); exclusive opens, the family check and the
+  tty back at 115200 after a touch (6.1); `screen.log` every run and the formats of `config.json` and `drafts.json`
+  (8); the new packages and the demo build (9.1); the tests' clocks (10); sizes shown once known (2).
+- 25 Nov 2026, after a check of the lock against the code (the code wins): the launcher's Esc hold ends meshflash in
+  the CLI app too, so Help says so in both modes (4 Help, Screen lock); the lock page shows how long the running step
+  has run (4, 11); a held Tab's repeats never act after the lock either, and the Tab that starts a hold answers an open
+  question no (5, 11); in the CLI app two Tabs less than 0.5 s apart act as one, and the lock's timings (5, 11); a
+  backlight under `/sys` is switched only when drawing on `/dev/fb0` (2).

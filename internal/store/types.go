@@ -67,9 +67,9 @@ type Radio struct {
 // which sends nothing: SPEC.md 4) is "" and named in Cleared, so it comes back blank rather than as the node's value.
 //
 // drafts.json keys each draft by flash.Port.DraftKey: the board's USB serial number in one form, or for a board with
-// no useful serial its USB socket and identity ("usb 1-1.2 10c4:ea60"), when the owner chooses that (owner question
-// 13 in docs/phase2-design.md). A draft whose Role isn't the node's role when the form reopens gives only the rows
-// both forms have, and the form says so.
+// no useful serial its USB socket and identity ("usb 1-1.2 10c4:ea60"), as the owner chose (docs/phase2-design.md
+// owner question 13, answered 25 Nov 2026). A draft whose Role isn't the node's role when the form reopens gives
+// only the rows both forms have, and the form says so.
 //
 // It has no field for the admin or guest password, by design: a password is typed each time and never written
 // anywhere (SPEC.md 4, 8).

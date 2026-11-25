@@ -127,7 +127,8 @@ func (w *World) Unplug(b *Board) {}
 //   - a port left open after a job, a probe or a read finished;
 //   - a port opened without a baud, or not exclusively;
 //   - a probe (a session that isn't a flash or a setup) opening a bootloader port, or sending anything but ver,
-//     get <name> and board;
+//     get <name> and board, or asking get guest.password (owner question 1: a probe reads the name, never the
+//     guest password);
 //   - a 1200-baud touch on a port that isn't an nRF52 app; SLIP sent to an nRF52; a DFU frame sent to an app;
 //   - START sent to anything but the bootloader, or into a bootloader session that already had START;
 //   - FLASH_BEGIN or START sent with no flash job running;

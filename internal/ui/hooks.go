@@ -9,17 +9,20 @@ package ui
 //
 // What the frame does (frame.go has it all):
 //
-//   - Update: the size; a key (Ctrl+C: quit, or ask confirmQuit while a flash or setup Job runs; then Help; then an
-//     open question, where any key but y says no and a held y does nothing; then ? unless a text box is open; then
-//     setupKey on scrSetup, screenKey elsewhere); a Job's flash.Progress (stale ones dropped; the next waited for;
-//     at Done m.job and m.busy let go, Help closed, a stop or quit question dropped; then setupProgress for a
-//     JobSetup picture, jobProgress for the others); its own scans and battery; then screenMsg; then setupResult.
+//   - Update: the size; a key (while locked, the lock alone: lock.go; a held Tab's repeats dropped, its 3 s hold
+//     locking; Ctrl+C: quit at once, or ask confirmQuit while a flash Job runs, a setup being stopped with no
+//     question; then Help; then an open question, where any key but y says no and a held y does nothing; then ?
+//     unless a text box is open; then setupKey on scrSetup, screenKey elsewhere); a Job's flash.Progress (stale ones
+//     dropped; the next waited for; at Done m.job and m.busy let go, Help closed, a stop or quit question dropped;
+//     then setupProgress for a JobSetup picture, jobProgress for the others); its own scans and battery; the lock's
+//     LockMsg and timer; then screenMsg; then setupResult.
 //   - It scans sysfs (Backend.Scan) every second on every screen into m.scan and calls afterScan; it reads the
 //     battery every 30 s into m.battery while ShowBattery.
 //   - View: the status line (the title from setupTitle or screenTitle, the battery, the mark from m.busy and
 //     setupSubject or screenSubject against m.scan), the body and hint from setupView or screenView (or Help), the
-//     question (setupConfirmText or screenConfirmText) or m.note, and the hint line.
-//   - Help: "Keys", setupHelp or screenHelp, Ctrl+C, and the common footer.
+//     question (setupConfirmText or screenConfirmText) or m.note, and the hint line. While locked, the lock page
+//     instead (or nothing, dark), and no hook's View is called.
+//   - Help: "Keys", setupHelp or screenHelp, the lock ("hold tab"), Ctrl+C, and the common footer.
 //   - quitNow and Shutdown: SaveUnsent (saveSetupDraft on scrSetup), closeSetup (Shutdown), cancelProbes, and the Job
 //     cancelled. toBoard: closeSetup when leaving scrSetup, then Board, a rescan, and boardOpened.
 //
@@ -29,7 +32,14 @@ package ui
 //     is given to watch in the same Update. Every other Backend call is made inside a tea.Cmd that captures its
 //     arguments before it is returned.
 //   - Ask a question only with ask(k); builder D asks only confirmStopSetup, and only on scrSetup.
-//   - A y is ignored, starting nothing, while m.yHeld (a held y repeating: heldYGap) on Confirm and Setup.
+//   - A y is ignored, starting nothing, while m.yHeld (a y less than heldYGap after the previous y: a held y
+//     repeating) on Confirm and Setup.
+//   - A Tab reaching screenKey or setupKey is one press: the frame drops a held Tab's repeats (a terminal's) and
+//     internal/screen never sends them (the LCD's), so Tab keeps its own meaning (S21's next field) once per press.
+//     Neither builder handles a held key or the lock, and no key reaches either while locked.
+//   - jobProgress and setupProgress do nothing, and never panic, for a picture of a Job their screens didn't start
+//     (the frame's own tests, lock_test.go and quit_test.go, watch Jobs from the Board screen); likewise
+//     screenConfirmText and setupConfirmText only ever word their own questions.
 //   - m.note is one short sentence; longer words go in the screen's body.
 //   - Builder D reads m.backend, m.store, m.cat, m.cfg, m.job, m.jobSeenAt, m.scan, m.name, and may write m.note,
 //     m.busy (incremented while ReadNode runs, decremented when its answer comes) and m.cfg.Radio (after a setup
@@ -37,8 +47,10 @@ package ui
 //     screen fields or m.flow. Builder C never reads or writes m.setup.
 //   - Every top-level name builder D declares, in code or tests (types, message types, funcs, vars, consts, test
 //     helpers), starts with setup, preset or pick (or Setup, Preset, Pick in test names, plus TestEditor… and
-//     TestNoGoldenHoldsThePassword); builder C never uses those prefixes. Nobody declares a name starting with frame,
-//     or one already declared in a fixed file.
+//     TestNoGoldenHoldsThePassword); builder C never uses those prefixes. Nobody declares a name starting with frame
+//     or lock (or Lock), no test named TestLock…, TestCtrlC…, TestShutdownLogs… or TestNothingLocks… (lock_test.go
+//     and quit_test.go are the integrator's; builder C's TestQuitWhileFlashingAsks is C's own), and no name already
+//     declared in a fixed file or test file (lines, writing, watchJob, runningJob, radioSaved, lockDriver among them).
 
 import (
 	"time"
@@ -55,7 +67,7 @@ var (
 	// board's own `board` reply sets the TX power limit), reading the node first (firstBoot right after a flash, for
 	// the longer wait). It sets m.screen = scrSetup. Builder C cancels the Board's probes before calling it.
 	_ func(*Model, flash.Port, string, bool) tea.Cmd = (*Model).openSetup
-	// setupKey handles a key on scrSetup (after the frame's Ctrl+C, Help, question and ? handling).
+	// setupKey handles a key on scrSetup (after the frame's lock, held Tab, Ctrl+C, Help, question and ? handling).
 	_ func(*Model, tea.KeyMsg) tea.Cmd = (*Model).setupKey
 	// setupView draws scrSetup's body in w×h cells (scrolling or fitting its own: fitSteps, window) and gives its
 	// key hint, one that fits w (S12: fitHint), with "? help" outside a text box.
@@ -71,13 +83,14 @@ var (
 	_ func(*Model, tea.Msg) (tea.Cmd, bool) = (*Model).setupResult
 	// setupProgress takes a picture of the running setup Job, after the frame's bookkeeping. At Done it saves
 	// Outcome.Sent (store.SaveRadio(SavedRadio(*Sent)) and m.cfg.Radio) whether or not the setup worked, deletes the
-	// draft when it did, and keeps it when it didn't.
+	// draft when it did, and keeps it when it didn't. It may come while the screen is locked: Setup moves on
+	// underneath and shows its end once unlocked.
 	_ func(*Model, flash.Progress) tea.Cmd = (*Model).setupProgress
 	// setupHelp is Help's list of scrSetup's keys, for the state Setup is in ("key" padded to 15 runes, then what it
 	// does).
 	_ func(*Model) []string = (*Model).setupHelp
-	// setupConfirmText words a question on scrSetup: confirmStopSetup by the picture's flash.Risk, and confirmQuit
-	// (Ctrl+C while sending) as confirmStopSetup's words ending "…and meshflash quits.".
+	// setupConfirmText words a question on scrSetup: confirmStopSetup, by the picture's flash.Risk. (Ctrl+C while
+	// sending asks nothing: the frame quits at once and logs what the node was left with: owner question 16.)
 	_ func(*Model, confirmKind) string = (*Model).setupConfirmText
 	// setupConfirm does one of Setup's questions after y (the frame does confirmQuit itself).
 	_ func(*Model, confirmKind) tea.Cmd = (*Model).setupConfirm
@@ -99,7 +112,7 @@ var (
 
 	// start is what the screens do when the program starts (Init batches it after the first scan): the catalog.
 	_ func(*Model) tea.Cmd = (*Model).start
-	// screenKey handles a key on every screen but scrSetup.
+	// screenKey handles a key on every screen but scrSetup (after the same frame handling as setupKey).
 	_ func(*Model, tea.KeyMsg) tea.Cmd = (*Model).screenKey
 	// screenView draws every screen but scrSetup in w×h cells, and gives its hint (as setupView).
 	_ func(*Model, int, int) ([]string, string) = (*Model).screenView
@@ -119,7 +132,7 @@ var (
 	// screenMsg takes builder C's own messages; ok says it was one.
 	_ func(*Model, tea.Msg) (tea.Cmd, bool) = (*Model).screenMsg
 	// jobProgress takes a picture of a download or flash Job, after the frame's bookkeeping (at Done: to Result or
-	// back where the download came from, in the same Update: S16).
+	// back where the download came from, in the same Update: S16, locked or not: Result shows once unlocked).
 	_ func(*Model, flash.Progress) tea.Cmd = (*Model).jobProgress
 	// afterScan is told of every scan the frame keeps (m.scan; m.scanErr when it failed), with the ports before it:
 	// the Board's probes for new ports and dropped lines for gone ones, a Confirm whose board went.

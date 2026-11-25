@@ -154,3 +154,25 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+================================================================================
+9. The CardputerZero app kit (the owner's own code)
+   Used for: internal/screen, copied whole from the kit's code/internal/screen
+   (drawing on the LCD in a pixel font, reading the keyboard device, the
+   battery); internal/ui's text.go, editor.go and its test driver; and the
+   shape of internal/app and internal/store. The kit is the owner's own code
+   (it carries no licence file of its own); the copies are part of meshflash
+   under meshflash's MIT licence, and the kit is named here so they can be
+   traced.
+
+   meshflash's departures from the kit's internal/screen (its package doc says
+   the same, and docs/phase2-design.md section 18):
+   - testpage.go: the --screen-test page names meshflash and shows every glyph
+     meshflash's screens use (screen.Glyphs), not Loom's.
+   - run.go: the screen lock's Tab hold (Options.TabHeld, HoldToLock: Tab acts
+     once per press and, held 3 s, sends the lock message), the frames telling
+     the drawing loop when the model wants the screen dark, and the light put
+     back on before the screen is blanked; the kit's escHold became keyHold,
+     with its clock passed in.
+   - backlight.go (new): the LCD's backlight, switched off while the screen
+     lock is dark, and only when drawing on /dev/fb0 unless a folder is given.

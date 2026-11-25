@@ -130,10 +130,12 @@ type Node struct {
 	// Info is what the node said about itself (ver, get role, board), when Problem is NoProblem or NotSettable.
 	Info nodecli.Info
 	// Current is the node's current settings (nodecli.ReadSettings: name, radio, TX power, path hash, location,
-	// local advert, and a room server's guest password; never the admin password), when they were read: always by
-	// ReadNode, which keeps the guest password as the form's default; by Probe only if the owner chooses that the
-	// Board screen shows the node's name (docs/phase2-design.md, owner question 1), and then never with the guest
-	// password, which Probe clears before it returns. HasCurrent says they were read.
+	// local advert, and a room server's guest password; never the admin password), when they were read. ReadNode
+	// always reads them, and keeps the guest password as the form's default. Probe reads them too once a repeater or
+	// room server has answered, so the Board screen can show the node's name (owner question 1, answered 25 Nov
+	// 2026), but never the guest password: it reads them as a repeater's (the Info's Role set to
+	// nodecli.RoleRepeater for the read), so a room server is never even asked for it. HasCurrent says they were
+	// read.
 	Current    nodecli.Settings
 	HasCurrent bool
 }
@@ -166,9 +168,9 @@ type Prepared struct {
 	// Notes are things worth knowing before y, in plain words: the SoftDevice the catalog doesn't name, say.
 	Notes []string
 	// Ask is a question the screens ask with a second y before flashing, "" for none: for an nRF52 board whose
-	// SoftDevice the catalog doesn't name, "The catalog doesn't say which SoftDevice this board has: if the file
-	// needs another, the bootloader refuses it and its app is erased. Flash anyway?" (owner question 20; empty when
-	// the owner chooses the note alone).
+	// SoftDevice the catalog doesn't name (T-Echo, Wio Tracker L1 EINK, ThinkNode M1, Nano G2 Ultra), "The catalog
+	// doesn't say which SoftDevice this board has: if the file needs another, the bootloader refuses it and its app
+	// is erased. Flash anyway?" (owner question 20: Confirm says so and asks a second y, as for a low battery).
 	Ask string
 }
 
@@ -254,6 +256,9 @@ type Progress struct {
 	Now time.Time
 	// Steps so far, in order: every step that has started, the last one the one under way until Done.
 	Steps []Step
+	// Planned is how many steps the Job will have in all when it knows (a setup: its plan's commands, the read-back,
+	// the reboot and the check), else 0. The screen lock's page shows "Setting up · step 4 of 20" from it.
+	Planned int
 	// Risk is what stopping now would leave the board with (flash and setup Jobs; RiskNone for a download).
 	Risk Risk
 	// Done says the job has ended; Outcome is then set and the picture never changes again.
