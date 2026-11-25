@@ -33,3 +33,7 @@
   and Setup's end scroll a paragraph at a time, never cutting a sentence; Confirm keeps the file's check at 40×10;
   Update catalog no longer says a saved catalog stays when there is none, and says so when Esc stops it; steps under way say what they do ("Waiting for it on
   USB", "Asking its version"); in the CLI app a held Esc no longer walks back through every screen.
+- Setup form: Tab in a text box or a pick list keeps it and opens the next row, box or list alike, so Tab walks
+  through the whole form; on the last row it keeps it and closes, ready for `y`, and Shift+Tab walks back the same way.
+  A row the box or list can't show as it is (a name over 23 bytes, a bandwidth not in the list) stops the walk,
+  unchanged, until you open it. Tab with nothing open still just moves.

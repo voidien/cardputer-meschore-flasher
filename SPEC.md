@@ -79,11 +79,11 @@ that board is plugged in and identified by its USB identity and `○` when it is
 board to Flashing: the board picked; Result and Setup: the board as it is now); on Update catalog and Saved files, `●`
 when any board is plugged in. The bottom line is the key hints (S12). Text wraps (S11), a word too wide for the line
 (a file name) breaking after a "-", "_" or "/" where it can; at 40×10 long step lists fold their oldest steps into
-"✓ 3 earlier steps", and Result's and Setup's end scroll with `j`/`k` a paragraph at a time, what to do now kept in
-view. Lists scroll by whole items (Board's ports, Saved files, the Setup form's rows with what is said under them), so
-no item shows only its first or last lines; Role's notices stay above its list, which scrolls under them. The
-selected row starts with `▸`; group headings ("MeshCore", "All boards:", Help's "Keys") are in reverse video. The
-mock-ups are close to, not exactly, what the goldens hold.
+"✓ 3 earlier steps", and Result's and Setup's end scroll with `j`/`k` a paragraph at a time (the owner's answer, 11),
+what to do now kept in view. Lists scroll by whole items (Board's ports, Saved files, the Setup form's rows with what
+is said under them), so no item shows only its first or last lines; Role's notices stay above its list, which scrolls
+under them. The selected row starts with `▸`; group headings ("MeshCore", "All boards:", Help's "Keys") are in
+reverse video. The mock-ups are close to, not exactly, what the goldens hold.
 
 **Board** (start screen). Every plugged-in serial port, what its USB identity suggests, and what it's running when that
 is known; the catalog's age. When a port appears and isn't a bootloader, meshflash asks it `ver`, `get role` and
@@ -154,8 +154,9 @@ to the board by name; ZephCore-only boards appear in Choose board with only thes
 third-party" (GUI, GUI with data on SD). A role is named by the catalog's title and subtitle ("Companion ·
 Bluetooth"). The selected role's notices are shown above the list as plain text, links dropped, including the T1000-E
 LoRaWAN warning that the web flasher never shows: in normal text (they are warnings), and pinned there while the list
-scrolls under them, so a role low in the list shows its own. When they don't all fit with the selected row (40×10),
-whole notices are left out, one saying the board can be bricked kept first, then the shortest.
+scrolls under them, so a role low in the list shows its own; on Role only, not repeated on Confirm (the owner's
+answer, 11). When they don't all fit with the selected row (40×10), whole notices are left out, one saying the board
+can be bricked kept first, then the shortest.
 
 **Version.** Newest first, with "saved" and its size when the file is on the SD card; an ESP32 version, which has two
 files, says which: "update saved · 361 KB", "wipe saved · 1.3 MB" or "both saved". Enter goes to Confirm; `n` shows
@@ -205,10 +206,10 @@ board's name and the file line loses its size; past that the top lines go, never
 at the bottom.
 
 **Download** (a file not saved yet, from Confirm's `y`, or a version's files from `d`): each file's name on a line of
-its own (a label, cut with "…" when it is wider than the screen) and under it its bytes as they come ("212 of 361 KB ·
-59% (0:12)"), where from ("From flasher.meshcore.io", or "From GitHub (the flasher site didn't have
-it)"), and "Wi-Fi needed.". Esc stops it and goes back at once, without asking: nothing saved changes. At the end it
-goes back where it came from.
+its own (a label, cut with "…" when it is wider than the screen: the owner's answer, 11) and under it its bytes as they
+come ("212 of 361 KB · 59% (0:12)"), where from ("From flasher.meshcore.io", or "From GitHub (the flasher site didn't
+have it)"), and "Wi-Fi needed.". Esc stops it and goes back at once, without asking: nothing saved changes. At the end
+it goes back where it came from.
 
 **Flashing.** Each step with a mark (`✓` done, `▸` now), the bytes written, and how long it's taken (S17). It says
 "Don't unplug the board." Esc asks before stopping, in words that say what stopping leaves: "Stop now? Nothing has
@@ -268,14 +269,15 @@ r retry  esc back  ? help
 ```
 
 **Setup** (MeshCore repeater and room server only, never ZephCore). A form, one field per row; Tab or `j`/`k` moves,
-Enter edits a field; the form scrolls to keep the field in view.
+Enter edits a field, and Tab in a field being edited keeps it and opens the next, so Tab walks through the form; the
+form scrolls to keep the field in view.
 
 | Field | Default | Checks before sending |
 | --- | --- | --- |
 | Name | the node's current name, or empty | 1–23 bytes; none of `[ ] / \ : , ? *`; no leading or trailing space |
 | Frequency, Bandwidth, Spreading factor, Coding rate (four rows) | your messenger's settings when `~/.config/mesh/config.json` has them (8.4); otherwise the last radio meshflash sent; otherwise the node's current values. Enter on Frequency opens a text box, on the other three a pick list of the allowed values. `p` lists MeshCore's presets (a copy built into meshflash, 7) and fills all four, and the path hash mode | only the bandwidths the radio accepts (7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500 kHz); frequency within the firmware's range; SF 5–12; CR 5–8 |
 | TX power | your messenger's `tx_dbm` (8.4), else the last TX power meshflash sent, else the node's current value; capped at the board's limit, with a note when it was | -9 dBm (the radio's minimum; an ASCII hyphen on screen) up to the board's limit: MeshCore FAQ 7.7's values for amplified boards (Station G2, Ikoka E22-30S/33S, Heltec V4), 22 dBm for the rest; an Ikoka whose `board` reply and catalog name don't say which module it has gets 9, the safest of its modules |
-| Path hash mode | from the preset whose radio the form starts with (size − 1), else the last sent, else the node's current value; 1, 2 or 3 bytes | firmware v1.14.0 or newer; the row says "needs v1.14+" otherwise |
+| Path hash mode | from the presets whose radio the form starts with, when they all agree on one (size − 1), else the last sent, else the node's current value; 1, 2 or 3 bytes | firmware v1.14.0 or newer; the row says "needs v1.14+" otherwise |
 | Latitude, longitude | the node's current values; blank sends nothing | −90…90, −180…180 |
 | Local advert | the node's current value: off, or every 60–240 minutes (the first setting saved turns off a new node's 2-minute local advert, so 1–59 shows as off) | 0, or 60–240 in even minutes (the node stores half the minutes and would round an odd value down) |
 | Admin password | empty: you must type one | 1–15 bytes, no leading or trailing space. The row shows `••••` whatever its length, the text box one `•` per character; never saved, never logged, cleared when the screen closes and after sending |
@@ -292,12 +294,12 @@ Esc while sending asks `y` before stopping, in words that say what the node keep
 when it restarts."; after the reboot "Stop now? It has restarted with the new settings; meshflash just won't check
 them."). Ctrl+C while sending quits at once, without asking: the setup stops where it is (between two commands:
 nothing more is written once it stops, the 100 ms gap before a command included, and a command already written has
-its answer read, for 1 s at most, so what the node took is known; one whose answer never came "was sent just as it
-stopped, and may have been saved"), and `screen.log` says what the node was sent,
-what it is left with (its radio saved but not rebooted: still on the old radio until it restarts, say) and how to
-finish. What was typed and not sent is kept per board (8) and comes back when the form reopens: "Restored what was
-typed for this board.", or "…for the board on this USB socket." for a board with no useful serial number, ending "…
-as a room server." when the draft was typed for the other role.
+its answer read, for 1 s at most (`nodecli.StopGrace`, the owner's answer, 11), so what the node took is known; one
+whose answer never came "was sent just as it stopped, and may have been saved"), and `screen.log` says what the node
+was sent, what it is left with (its radio saved but not rebooted: still on the old radio until it restarts, say) and
+how to finish. What was typed and not sent is kept per board (8) and comes back when the form reopens: "Restored what
+was typed for this board.", or "…for the board on this USB socket." for a board with no useful serial number, ending
+"… as a room server." when the draft was typed for the other role.
 
 The form in detail (the code, `internal/ui/setup*.go`): "Reading the node's settings… (0:02)" first ("Waiting for it
 to start, then reading its settings…" right after a flash); the title "Set up repeater v1.18.0", "Setting up …" while
@@ -307,14 +309,20 @@ above this board's limit: 19 dBm."). Grey notes at the top: the messenger file's
 synchronised: the node's clock won't be set.". An open text box has a grey hint under it ("Up to 23 bytes.", "In dBm,
 -9 to 22 on this board.", "Up to 15 bytes. Sent to the node, never saved."). A blank latitude, longitude or local advert
 shows a grey "not sent"; the local advert is typed as "off" or minutes and shows "every 120 minutes"; on v1.13.0 and
-older the path hash row reads "needs v1.14+". Tab, `j`, `k` and Shift+Tab move (Tab wraps from the last row to the
-first; `j` and `k` stop at the ends); in a text box Tab keeps the text and moves to the next row with the box closed.
+older the path hash row reads "needs v1.14+". On the form, nothing open, Tab, `j`, `k` and Shift+Tab move (Tab wraps
+from the last row to the first; `j` and `k` stop at the ends) and open nothing. In an open text box or pick list Tab
+keeps it and opens the next row, a text box or a pick list alike, so Tab walks through the whole form (the owner's
+answer, 11); Shift+Tab keeps it and opens the row before. From the last row (Admin password, or Guest password on a
+room server) Tab keeps it and closes it, the focus staying there, ready for `y`; Shift+Tab does the same on Name. A row
+that can't open (the path hash before v1.14.0) is passed over without its note. A row whose text box or pick list
+can't hold its value as it is (a node's name over 23 bytes, a bandwidth not in the list) stops the walk there with the
+form closed, its value and its problem unchanged, so Tab never changes a row that wasn't opened; Enter opens it (11).
 `p` lists the 27 presets; Enter applies one, moves to Frequency and says "Radio set from the <preset> preset.". A
-preset gives the path hash default only when every preset with the form's radio agrees on one (EU/UK (Narrow),
-Netherlands (Limburg) and Switzerland share a radio but not a path hash, as do Canada and USA); otherwise the last
-sent, then the node's. `y` with a problem left is refused: the focus goes to the first row with one and the note names
-the rows. After a failure `r` goes back to the form with the focus on the admin password and both passwords empty
-(the end says "(type the password again)", for a room server "(type both passwords again)").
+preset gives the path hash default only when every preset with the form's radio agrees on one (the owner's answer,
+11; EU/UK (Narrow), Netherlands (Limburg) and Switzerland share a radio but not a path hash, as do Canada and USA);
+otherwise the last sent, then the node's. `y` with a problem left is refused: the focus goes to the first row with
+one and the note names the rows. After a failure `r` goes back to the form with the focus on the admin password and
+both passwords empty (the end says "(type the password again)", for a room server "(type both passwords again)").
 Help can't open inside a text box (`?` is a letter there), so the form's Help also lists the text box's keys under
 "In a text box:".
 
@@ -362,15 +370,16 @@ Tab then Enter to unlock
 ## 5. Keys
 
 Outside text boxes every action is one plain key (S18), but one: holding Tab 3 s locks the screen (4), a held key the
-owner asked for, departing from S18. A Tab press acts once as Tab before the lock (in a Setup text box, the next field;
-with a question open, it answers no, and it closes Help), and a held Tab never acts as more Tabs, before the lock or
-after it. In the CLI app, which never says when a key is let go, a Tab less than 0.5 s after the previous Tab counts as
-the held Tab repeating, so two Tabs pressed that quickly act as one there (11). `j`/`k` and the arrows (Fn+F/Fn+X)
-always move; a tap on Esc goes back (on Board, it quits); `?` is Help; Ctrl+C quits from anywhere, asking `y` first
-while flashing; a setup being sent is stopped where it is, with no question. A held `y` answers nothing (4, Confirm).
-In the CLI app a held Esc's repeats do nothing: an Esc less than 0.5 s after the previous Esc, no key between, is
-dropped, so holding Esc for the launcher's quit never walks back through the screens first (two Escs pressed that
-quickly act as one there; on the LCD every press counts). Locked, no key does anything but the unlock.
+owner asked for, departing from S18. A Tab press acts once as Tab before the lock (in a Setup text box or pick list,
+it keeps it and opens the next row; with a question open, it answers no, and it closes Help), and a held Tab never
+acts as more Tabs, before the lock or after it. In the CLI app, which never says when a key is let go, a Tab less than
+0.5 s after the previous Tab counts as the held Tab repeating, so two Tabs pressed that quickly act as one there (11).
+`j`/`k` and the arrows (Fn+F/Fn+X) always move; a tap on Esc goes back (on Board, it quits); `?` is Help; Ctrl+C quits
+from anywhere, asking `y` first while flashing; a setup being sent is stopped where it is, with no question. A held `y`
+answers nothing (4, Confirm). In the CLI app a held Esc's repeats do nothing (the owner's answer, 11): an Esc less than
+0.5 s after the previous Esc, no key between, is dropped, so holding Esc for the launcher's quit never walks back
+through the screens first (two Escs pressed that quickly act as one there; on the LCD every press counts). Locked, no
+key does anything but the unlock.
 
 | Screen | Keys |
 | --- | --- |
@@ -383,11 +392,11 @@ quickly act as one there; on the LCD every press counts). Locked, no key does an
 | Download | `esc` stop and go back (at once, no question) |
 | Flashing | `esc` stop (asks `y`) |
 | Result | `s` set up, `r` retry, `j`/`k` a paragraph, Space/`b` a page, `enter` or `esc` back to Board |
-| Setup | Tab/`j`/`k` field (Tab wraps; `j`/`k` stop at the ends; Shift+Tab back), `enter` edit, `p` preset list, `y` send; sending: `esc` stop (asks `y`); failed: `r` back to the form; done: `enter` or `esc` back to Board |
+| Setup | Tab/`j`/`k` field (Tab wraps; `j`/`k` stop at the ends; Shift+Tab back), `enter` edit, `p` preset list, `y` send; in an open text box or pick list, Tab keeps it and opens the next row (from the last row it keeps and closes; Shift+Tab the row before; a row whose box or list can't hold its value stops the walk, closed; Esc cancels); sending: `esc` stop (asks `y`); failed: `r` back to the form; done: `enter` or `esc` back to Board |
 | Update catalog | `esc` stop while fetching, `u` try again, `enter` back |
 | Saved files | `x` delete (asks `y`) |
 | Help | `j`/`k` two lines, Space/`b` page, any other key back |
-| Text box | Enter keep, Esc cancel, Tab keep and go to the next field with the box closed, Backspace (S21) |
+| Text box | Enter keep, Backspace (S21); in Setup, Esc cancels and Tab keeps it and opens the next row (Setup, above); in Choose board's find box, Esc clears the filter and Tab does nothing |
 | Any screen | Tab held 3 s: lock |
 | Locked | any key wakes the screen; then Tab, then Enter unlocks; nothing else |
 
@@ -402,8 +411,9 @@ quickly act as one there; on the LCD every press counts). Locked, no key does an
 - Never write the catalog's `erase` or `bootloader` files; never offer "Erase Flash" or "Enter DFU mode" on their own.
 - Match the board picked to the port's chip family (ESP32 or nRF52) before anything touches it; a board that doesn't
   fit is refused with nothing sent.
-- Warn and ask under 30% battery, and when the battery can't be read (on the CardputerZero, told by its device tree,
-  a fuel gauge that isn't listed counts as one that can't be read; only a PC has no battery).
+- Warn and ask under 30% battery, and when the battery can't be read (on the CardputerZero, told by
+  `/proc/device-tree/model` naming "Raspberry Pi Compute Module 0" (the owner's answer, 11; to confirm on the device
+  in Phase 3), a fuel gauge that isn't listed counts as one that can't be read; only a PC has no battery).
 - Open every port for probing, flashing and setup exclusively (TIOCEXCL), so nothing else can open it mid-flash.
 - Follow the board across resets by its USB serial number or USB path, never by tty name alone.
 - Leave a tty touched at 1200 baud at 115200 when the flash ends, however it ends, so the next program to open and
@@ -582,7 +592,7 @@ puts `~/.local/bin` on the CLI app's `PATH` in `~/.bashrc` if it isn't there, an
 HOST=CardPuter` installs the home-screen entry "MeshFlash" (`Exec=/home/void/.local/bin/meshflash --screen`) and its
 100×100 icon `meshflash_100.png` (the owner runs it: `sudo`): a green LoRa board with its antenna and a lightning bolt
 on its chip, on a teal tile (`packaging/make_icon.py`). The icon is drawn by code and shown to the owner first
-(S33).
+(S33); the owner approved `packaging/meshflash_100.png` on 25 Nov 2026 (11).
 
 ### 9.3 Permissions
 
@@ -666,7 +676,7 @@ The Phase 2 plan's questions (`docs/phase2-design.md` section 16), answered 25 N
 | `d` on an ESP32 version (3) | **both files** |
 | `r` after a failed flash (4) | **back to Confirm**, board and version kept; on an ESP32 the kind cleared (`u` or `w` again, then `y`); an nRF52 straight to `y` |
 | A held `y` (5) | **ignored**: a `y` less than 0.5 s after the previous `y` answers nothing and the question stays, for every `y` question (Confirm, battery, SoftDevice, Setup) |
-| TX power and path hash defaults (6) | TX power **the messenger's, else the last sent, else the node's**, capped at the board's limit with a note; path hash **the preset's, else the last sent, else the node's** |
+| TX power and path hash defaults (6) | TX power **the messenger's, else the last sent, else the node's**, capped at the board's limit with a note; path hash **the preset's, else the last sent, else the node's** (which preset's: below, from the Phase 2 report) |
 | nRF52 firmware meshflash can't ask its version (7) | **"Flashed"** when the bootloader took the image and left; Result says whether the board came back on USB and that meshflash can't ask this firmware its version |
 | ESP32-C6 boards (8) | **listed grey**, marked "ESP32-C6", refused before any download |
 | Esc held or the launcher's SIGTERM during a flash (9) | **stop the flash the safe way at once**, write the board's state and how to recover it to `screen.log`, exit; nothing new in `config.json` |
@@ -675,7 +685,7 @@ The Phase 2 plan's questions (`docs/phase2-design.md` section 16), answered 25 N
 | Selected row and headings (12) | **`▸` on the selected row**, group headings in reverse video |
 | Drafts for boards with no useful USB serial (13) | **kept by USB socket and identity** ("usb 1-1.2 10c4:ea60"); the form says "Restored what was typed for the board on this USB socket." |
 | The other screen and key details (14) | **all ten approved** as written |
-| `j`/`k` in Notes, Help and Result (15) | **two lines** (Result and Setup's end now scroll a paragraph at a time, so no sentence is cut: asked again after the Phase 2 check) |
+| `j`/`k` in Notes, Help and Result (15) | **two lines** (kept for Notes and Help; Result and Setup's end refined in the Phase 2 report's answers below) |
 | Ctrl+C while a setup is being sent (16) | **quit at once, without asking** (not the recommendation): the setup stopped the safe way, `screen.log` saying what the node was sent, what state it is in and how to finish; Esc while sending still asks `y` |
 | Retrying an nRF52 flash that stopped part-way (17) | **no Phase 1 change**: Result says "Press r; meshflash then asks you to press reset twice quickly."; after `r` and `y`, Flashing asks for the double press and waits (asking again if it wasn't seen) |
 | An nRF52 already in its bootloader at start (18) | **fresh only if meshflash saw it appear in this run**; otherwise a double reset press is asked for when flashing it |
@@ -685,6 +695,22 @@ The Phase 2 plan's questions (`docs/phase2-design.md` section 16), answered 25 N
 | The lock's look | **dark a few seconds after locking** (and after each wake); any key lights a lock page: the status line, what is running ("Flashing · 42%", "Setting up · step 4 of 20", or the screen's name) and "Tab then Enter to unlock"; the backlight off if meshflash may (checked in Phase 3), else drawn black |
 | Unlocking | **as the home screen**: any key wakes the screen, then Tab, then Enter |
 | Auto-lock | **none**: it locks only on a Tab hold |
+
+The Phase 2 report's questions, answered 25 Nov 2026:
+
+| Choice | Answer |
+| --- | --- |
+| Scrolling Result and Setup's end (a refinement of 15) | **a paragraph at a time** with `j`/`k`, Space/`b` a page, so no sentence of the Summary is cut; Notes and Help keep the two-line step |
+| A role's notices | **pinned above Role's list, in normal text**, on Role only (not repeated on Confirm) |
+| A held Esc in the CLI app | **dropped as a held Tab's is**: an Esc less than 0.5 s after the previous Esc (no key between) does nothing |
+| A stopped setup | **waits up to 1 s** (`nodecli.StopGrace`) for the node's answer to the command already written, so it says truly what the node took |
+| Tab in a Setup text box or pick list | **keeps it and opens the next row**, a text box or a pick list alike, so Tab walks through the form; from the last row it keeps and closes, the focus staying there; Shift+Tab the same backwards, closing on Name; a row that can't open is passed over |
+| Which preset gives the path hash default | **a preset's only when every preset with that radio agrees**; otherwise the last one sent, then the node's own |
+| How meshflash knows it is on the CardputerZero | **`/proc/device-tree/model` naming "Raspberry Pi Compute Module 0"**, to be confirmed on the device in Phase 3 |
+| A long file name on Download | **on one line, cut with "…"**, its bytes on the next |
+| The other Phase 2 details | **approved as built**: a draft restored by serial says "Restored what was typed for this board."; grey hints under an open text box; a blank latitude, longitude or local advert shows a grey "not sent", and the local advert is typed as "off" or minutes; Help lists the text box's keys under "In a text box:"; Esc on Download stops and goes back at once; the Board's hint with `s` is "enter choose  s set up  u update  ? help", `c` only in Help; the lock page shows what is under way with its time; after a crash a download is stopped at once; an argument that isn't a flag is refused with the usage and exit 2; an unreadable `config.json` is left alone and nothing is remembered until it is fixed; locking from the Setup form lets the hold's first Tab act; the demo's Download names its fake host |
+| The icon as drawn | **approved**: `packaging/meshflash_100.png` (S33) |
+| CLAUDE.md's Commands | **updated**: `make test`'s whole check, `make demo`, `make run-small`, `make icon`, `make build-arm64`, and the PC run into a file |
 
 Decided without asking (technical defaults; the owner can overrule any):
 
@@ -702,8 +728,9 @@ Decided without asking (technical defaults; the owner can overrule any):
   pressed that quickly after the Tab that woke it doesn't arm the unlock). The same 0.5 s marks a held `y` (5).
 - The Tab press that starts a hold is an ordinary press: an open question takes it as "no" (the safe answer) and Help
   closes, before the lock.
-- In the CLI app a held Esc repeats as a held Tab does, so an Esc less than 0.5 s after the previous Esc (no key
-  between) is dropped (5).
+- Setup's Tab walk stops, the form closed, on a row whose text box or pick list can't hold its value as it is (a
+  node's name over 23 bytes: the node keeps 31; a bandwidth not in the list, which would open on the nearest), rather
+  than opening it for the next Tab to keep changed: the row's value and its problem stay until it is opened (4 Setup).
 
 ## 12. Phases
 
@@ -716,8 +743,8 @@ Each phase ends with a report and a stop.
    board and `httptest`; the icon (shown to the owner first) and the home-screen entry; a run with the screen drawn
    into a file on the PC.
 3. **The device, with the owner.** The owner runs the commands: `dialout`, `make deploy`, a run on the device drawing
-   into a file with keys from a FIFO (S30), memory (S9); then, with the owner watching, flashing and setting up a real
-   board; the hand-over checklist (`docs/standards.md` in the kit).
+   into a file with keys from a FIFO (S30), memory (S9), what `/proc/device-tree/model` says (6.1); then, with the
+   owner watching, flashing and setting up a real board; the hand-over checklist (`docs/standards.md` in the kit).
 
 ## Changes to this spec
 
@@ -790,3 +817,17 @@ Each phase ends with a report and a stop.
   Esc in the CLI app (5, 11); the touch's stop, every port closed after a crash, and a stale nRF52 session kept across
   a replug (6.1, 6.3); the battery on the Zero (6.1); the TX power remembered only once sent, a signal after a crash,
   and the LCD after a drawing panic (8); `internal/screen`'s fourth change (9.1).
+- 25 Nov 2026: the owner's answers to the Phase 2 report (11). One changes the code: Tab in a Setup text box or pick
+  list keeps it and opens the next row, a text box or a pick list alike, so Tab walks through the form; from the last
+  row it keeps and closes, the focus staying there, Shift+Tab the same back to Name, and a row that can't open (the
+  path hash before v1.14.0) is passed over without its note (4 Setup, 5). The rest record what was built as the
+  owner's answers: Result and Setup's end a paragraph at a time, Notes and Help two lines; Role's notices on Role
+  only; a held Esc dropped in the CLI app (moved from "Decided without asking"); a stopped setup waiting 1 s for the
+  answer to the command already written; the path hash default from a preset only when every preset with that radio
+  agrees (4 Setup's table now says so); the Zero told by `/proc/device-tree/model`, checked in Phase 3 (6.1, 12); a
+  long file name on Download; the icon (9.2); CLAUDE.md's Commands; and the other details approved as built.
+- 25 Nov 2026, the review of the Tab walk: a row whose text box or pick list can't hold its value as it is stops the
+  walk there with the form closed, so Tab never changes a row that wasn't opened (4 Setup, 5; 11 "Decided without
+  asking"); 5's "Text box" row spoke for Setup's boxes only and now says Choose board's find box clears on Esc and
+  does nothing on Tab, as the code does; 11's record of the CLAUDE.md answer names `make test`'s whole check, as the
+  CLAUDE.md change and design 16.1 do.

@@ -49,7 +49,7 @@ until you press `u` (update the catalog), `d` (download) or `y` on a file not sa
 | Download, Update catalog | Esc stops it and goes back, without asking; after a failed update `u` tries again |
 | Flashing | Esc stops, after a `y` |
 | Result | `r` try again from the saved file, `s` set it up |
-| Setup | Tab or `j`/`k` move, Enter edits a row, `p` radio presets, `y` sends; the admin password is never saved |
+| Setup | Tab or `j`/`k` move, Enter edits a row, `p` radio presets, `y` sends; in a row being edited, Tab keeps it and opens the next, so Tab walks through the form (on the last row it keeps it and closes, ready for `y`; Shift+Tab goes back); the admin password is never saved |
 | Saved files | `x` deletes a file, after a `y` |
 
 A held `y` answers nothing: release it and press again. In the CLI app a held Esc counts once, so two Escs pressed

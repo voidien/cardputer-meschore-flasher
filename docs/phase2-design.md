@@ -971,26 +971,35 @@ Defaults, in SPEC's order: Name the node's; the radio the messenger's (`Messenge
 last sent (`m.cfg.Radio`, when `CheckRadio` takes it) else the node's; TX power (owner question 6) the messenger's
 (`MessengerRadio.HasTx`), else the last sent (`m.cfg.Radio.TxDBm`, when one was saved), else the node's, and whichever
 it is capped at the board's limit (`nodecli.TxLimit`) with a note under the row when it was ("22 dBm is above this
-board's limit: 9 dBm."); path hash the preset's (the `nodecli.Presets` entry whose radio is the radio default, when it
-gives `PathHashBytes`), else the last sent (`m.cfg.Radio.PathHashBytes`, when not 0), else the node's; location and
-local advert the node's; admin password empty; guest password the node's. Then the draft for the port's `DraftKey`
-(owner question 13), when there is one, over them (typed text, so a half-typed value comes back; a row in `Cleared`
-comes back blank). A draft whose `Role` isn't the node's role applies only the rows both forms have, with the note
-"Restored what was typed for this board as a <role>." A draft kept by USB socket says "Restored what was typed for the
-board on this USB socket." `p` lists `nodecli.Presets`; Enter applies one (`Preset.Apply`: the four radio rows and the
-path hash). Frequency, TX power, latitude, longitude, local advert, name and passwords are text boxes (Enter keep, Esc
-cancel restoring the old value, Tab next field, Backspace: S21); bandwidth (`nodecli.Bandwidths`), spreading factor
-(5–12), coding rate (5–8, shown 4/5–4/8) and path hash (1–3) are pick lists. TX power checks `nodecli.CheckTxPower(dbm,
-device, info.Board)` and says the limit (`TxLimit`). On screens "-9 dBm" uses an ASCII hyphen (section 13).
+board's limit: 9 dBm."); path hash the presets' (`presetPathHash`: the `nodecli.Presets` entries whose radio is the
+radio default, only when every one gives the same `PathHashBytes`, the owner's answer to the Phase 2 report), else the
+last sent (`m.cfg.Radio.PathHashBytes`, when not 0), else the node's; location and local advert the node's; admin
+password empty; guest password the node's. Then the draft for the port's `DraftKey` (owner question 13), when there is
+one, over them (typed text, so a half-typed value comes back; a row in `Cleared` comes back blank). A draft whose
+`Role` isn't the node's role applies only the rows both forms have, with the note "Restored what was typed for this
+board as a <role>." A draft kept by USB socket says "Restored what was typed for the board on this USB socket." `p`
+lists `nodecli.Presets`; Enter applies one (`Preset.Apply`: the four radio rows and the path hash). Frequency, TX
+power, latitude, longitude, local advert, name and passwords are text boxes (Enter keep, Esc cancel restoring the old
+value, Tab keep and open the next row, Backspace: S21); bandwidth (`nodecli.Bandwidths`), spreading factor (5–12),
+coding rate (5–8, shown 4/5–4/8) and path hash (1–3) are pick lists (`j`/`k` pick, Enter keep, Esc cancel, Tab keep
+and open the next row). TX power checks `nodecli.CheckTxPower(dbm, device, info.Board)` and says the limit
+(`TxLimit`). On screens "-9 dBm" uses an ASCII hyphen (section 13).
 
 ### 10.4 Keys
 
 Form: Tab/`j`/`k`/↑/↓ field (Tab once per press: the frame drops a held Tab's repeats, and its 3 s hold locks the
 screen: section 18), `enter` edit, `p` presets, `y` send (refused with the problems listed while `nodecli.Check` finds
-any; a held `y` does nothing: 8.8), `esc` back (saves the draft). Help entries: form Tab/j/k field, enter edit, p
-presets, y send, esc back (keeps what you typed); text box Enter keep, Esc cancel, Tab next, Backspace; sending esc
-stop (asks y); failed r back to the form; done enter, esc. (The frame adds "hold tab" and Ctrl+C, which while sending
-quits at once.)
+any; a held `y` does nothing: 8.8), `esc` back (saves the draft). Tab on the form, nothing open, moves and wraps,
+opening nothing. In an open text box or pick list Tab keeps it and opens the next row, a text box or a pick list alike,
+so Tab walks through the form (`setupChain`, the owner's answer to the Phase 2 report, 25 Nov 2026); from the last row
+(Admin password, or Guest password on a room server) it keeps and closes, the focus staying there, ready for `y`;
+Shift+Tab walks back the same way and closes on Name; a row that can't open (the path hash before v1.14.0) is passed
+over without the note Enter on it gives; a row whose box or list can't hold its value as it is (`setupHolds`: a node's
+name over the box's 23 bytes, a bandwidth not in the list, which would open on the nearest) stops the walk there with
+the form closed, its value and its problem unchanged, so Tab never changes a row that wasn't opened. Help entries:
+form Tab/j/k field, enter edit, p presets, y send, esc back (keeps what you typed); text box Enter keep, Esc cancel,
+Tab keep and open the next row, Backspace; sending esc stop (asks y); failed r back to the form; done enter, esc. (The
+frame adds "hold tab" and Ctrl+C, which while sending quits at once.)
 
 ### 10.5 Sending
 
@@ -1374,6 +1383,49 @@ and this file describe the answers as given.
     on Confirm only. **Answered 25 Nov 2026: (a).** Confirm says so and asks a second `y`, as for a low battery
     (`Prepared.Ask`).
 
+### 16.1 The Phase 2 report's questions
+
+Asked in the Phase 2 report (after integration and the check), multiple choice, the recommendation first; answered in
+chat on 25 Nov 2026, each in SPEC §11's third table. One changes the code (5); the rest record what was built as the
+owner's answers.
+
+1. **Scrolling Result and Setup's end.** **Answered: a paragraph at a time** with `j`/`k`, Space/`b` a page, so no
+   sentence of the Summary is cut; Notes and Help keep the two-line step (`scrollStep`): a refinement of question 15
+   for those two screens (`endScroll`).
+2. **A role's notices.** **Answered: pinned above Role's list, in normal text**, on Role only, not repeated on
+   Confirm (`roleNotices`).
+3. **A held Esc in the CLI app.** **Answered: dropped as a held Tab's is**: an Esc less than 0.5 s after the previous
+   Esc, no key between, does nothing (`escRepeatGap`); before, a technical default.
+4. **A stopped setup.** **Answered: waits up to 1 s** (`nodecli.StopGrace`) for the answer to the command already
+   written, so it says truly what the node took.
+5. **Tab in a Setup text box or pick list.** **Answered: keep it and open the next row**, a text box or a pick list
+   alike, so Tab walks through the whole form; from the last row (Admin password, or Guest password on a room server)
+   it keeps and closes, the focus staying there, ready for `y`, with no wrap; Shift+Tab mirrors it, closing on Name;
+   a row that can't open (the path hash before v1.14.0) is passed over with no note. Before, Tab kept it and moved on
+   with the box closed. Changed in `setupChain` (used by `setupBoxKey` and `pickKey`), Help's text box and pick list
+   lines ("keep it and open the next row") and 10.3, 10.4 and 18; tested by `TestSetupTabWalksTheForm`,
+   `TestSetupTabSkipsPathHashOnOldFirmware`, `TestSetupTabStopsOnARowItCantHold`, `TestSetupHeldTabOpensOneRow` and
+   `TestSetupHelpTabOpensTheNextRow`. Tab on the form with nothing open still moves and wraps; the keeping is as before
+   (a password's runes moved, never copied; never in a draft, a log, a golden or a progress message). Decided without
+   asking after the change's review (SPEC §11): a row whose box or list can't hold its value as it is (`setupHolds`)
+   stops the walk, closed, rather than opening for the next Tab to keep it changed.
+6. **Which preset gives the path hash default.** **Answered: a preset's only when every preset with that radio
+   agrees**; otherwise the last one sent, then the node's own (`presetPathHash`, 10.3).
+7. **How meshflash knows it is on the CardputerZero.** **Answered: `/proc/device-tree/model` naming "Raspberry Pi
+   Compute Module 0"** (internal/app's `onZero`), to be confirmed on the device in Phase 3.
+8. **A long file name on Download.** **Answered: on one line, cut with "…"**, its bytes on the next.
+9. **The other details.** **Answered: approved as built**: a draft restored by serial says "Restored what was typed
+   for this board."; grey hints under an open text box; a blank latitude, longitude or local advert shows a grey "not
+   sent", and the local advert is typed as "off" or minutes; Help lists the text box's keys under "In a text box:";
+   Esc on Download stops and goes back at once; the Board's hint with `s` is
+   `"enter choose  s set up  u update  ? help"`, with `c` only in Help; the lock page shows what is under way with its
+   time; after a crash a download is stopped at once; an argument that isn't a flag is refused with the usage and exit
+   2; an unreadable `config.json` is left alone and nothing is remembered until it is fixed; locking from the Setup
+   form lets the hold's first Tab act; the demo's Download names its fake host.
+10. **The icon as drawn.** **Answered: approved**, `packaging/meshflash_100.png` (S33).
+11. **CLAUDE.md's Commands.** **Answered: update them**: `make test`'s whole check, `make demo`, `make run-small`,
+    `make icon`, `make build-arm64`, and the PC run into a file.
+
 ## 17. Review notes
 
 Three reviews (SPEC and standards, safety, testability) of the first draft, 24 Nov 2026. Every blocker and major is
@@ -1462,10 +1514,10 @@ meshflash can't stop that, and answer 9 applies.
 
 ### 18.1 What the owner sees
 
-- **Locking**: hold Tab 3 s, on any screen. The press acts once as Tab first (in a Setup text box, S21's next field;
-  on the form, the next row), and a held Tab's repeats never act as more Tabs, before the lock or after it. Being an
-  ordinary press, that first Tab also answers an open question no (the safe answer, as any key but `y`) and closes
-  Help, before anything can tell it is a hold. Shift+Tab is the same key.
+- **Locking**: hold Tab 3 s, on any screen. The press acts once as Tab first (in a Setup text box or pick list, it
+  keeps it and opens the next row; on the form, the next row), and a held Tab's repeats never act as more Tabs, before
+  the lock or after it. Being an ordinary press, that first Tab also answers an open question no (the safe answer, as
+  any key but `y`) and closes Help, before anything can tell it is a hold. Shift+Tab is the same key.
 - **Locked**: every key is ignored but the unlock: a `y` answers no question, Ctrl+C doesn't quit, `?` opens no Help.
   A flash, a setup, a download and the probes carry on underneath, and the scans every second too.
 - **The lock page**: meshflash's status line, titled "<Name> · locked" with the battery and the mark as ever; in the
@@ -1648,7 +1700,8 @@ Tab then Enter to unlock
    whether `void` may write `brightness` (`echo 0 > …`, then back, with the owner watching: anything needing `sudo` is
    the owner's). If it can't, the lock's dark is the black screen alone: check that it looks dark enough.
 2. **The lock on the LCD**, with the owner watching: hold Tab 3 s on Board, on Confirm, on the Setup form (one row
-   moved, then locked) and in a Setup text box; the page, then dark after 5 s; a key wakes it; Tab, Enter unlock.
+   moved, then locked) and in a Setup text box (the next row opened, then locked); the page, then dark after 5 s; a
+   key wakes it; Tab, Enter unlock.
 3. **A flash and a setup while locked**: the page follows them, says how they ended, and Result or Setup's end shows
    once unlocked.
 4. **The launcher's Esc hold while locked and dark**: meshflash exits within 3 s, the home screen comes back lit and
