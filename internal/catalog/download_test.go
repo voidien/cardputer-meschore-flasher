@@ -258,9 +258,14 @@ func TestDownloadGitHubFallback(t *testing.T) {
 			// GitHub answers 302 to its asset storage.
 			f.set(ghPath, fakeResp{status: 302, header: map[string]string{"Location": "/assets/blob?sig=x"}})
 			f.set("/assets/blob?sig=x", s.github)
-			e, err := c.Download(context.Background(), file, nil)
+			var from []string
+			e, err := c.DownloadFrom(context.Background(), file, nil, func(u string) { from = append(from, u) })
 			if want := []string{"/mc" + asset + "?repo=github", ghPath, "/assets/blob?sig=x"}; strings.Join(f.requests(), " ") != strings.Join(want, " ") {
 				t.Errorf("requests %q", f.requests())
+			}
+			// DownloadFrom names each URL as its fetch starts: the flasher site's, then GitHub's.
+			if want := []string{file.URL, file.Fallback}; strings.Join(from, " ") != strings.Join(want, " ") {
+				t.Errorf("from %q, want %q", from, want)
 			}
 			if s.wantErr != "" {
 				if !errors.Is(err, ErrBadAnswer) || !strings.Contains(err.Error(), s.wantErr) ||
@@ -289,8 +294,9 @@ func TestDownloadGitHubFallback(t *testing.T) {
 	if ripple.Fallback != "" {
 		t.Fatalf("Ripple fallback %q", ripple.Fallback)
 	}
-	if _, err := c.Download(context.Background(), ripple, nil); !strings.Contains(err.Error(), "HTTP 404") || len(f.requests()) != 1 {
-		t.Fatalf("%v %q", err, f.requests())
+	var from []string
+	if _, err := c.DownloadFrom(context.Background(), ripple, nil, func(u string) { from = append(from, u) }); !strings.Contains(err.Error(), "HTTP 404") || len(f.requests()) != 1 || len(from) != 1 || from[0] != ripple.URL {
+		t.Fatalf("%v %q, from %q", err, f.requests(), from)
 	}
 	// A download the owner stopped isn't retried from GitHub.
 	ctx, cancel := context.WithCancel(context.Background())

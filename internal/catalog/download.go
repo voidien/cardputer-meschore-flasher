@@ -63,6 +63,16 @@ func checkName(name string) error {
 // body must match it. progress, if not nil, is called as bytes arrive with the total, or -1 when it isn't known; when
 // the download falls back to GitHub it starts again from 0 with GitHub's total.
 func (c *Client) Download(ctx context.Context, f File, progress func(done, total int64)) (Entry, error) {
+	return c.DownloadFrom(ctx, f, progress, nil)
+}
+
+// DownloadFrom is Download, also telling from (if not nil) each URL as its fetch starts: f.URL, then f.Fallback
+// when the flasher site didn't give the file. So a screen can say where the file is coming from without reading an
+// error's words.
+func (c *Client) DownloadFrom(ctx context.Context, f File, progress func(done, total int64), from func(url string)) (Entry, error) {
+	if from == nil {
+		from = func(string) {}
+	}
 	name := f.Base()
 	if err := checkName(name); err != nil {
 		return Entry{}, err
@@ -75,10 +85,12 @@ func (c *Client) Download(ctx context.Context, f File, progress func(done, total
 	}
 
 	used := f.URL
+	from(f.URL)
 	tmp, size, sum, err := c.fetchFile(ctx, f.URL, name, false, progress)
 	if err != nil && f.Fallback != "" && ctx.Err() == nil {
 		first := err
 		used = f.Fallback
+		from(f.Fallback)
 		tmp, size, sum, err = c.fetchFile(ctx, f.Fallback, name, true, progress)
 		if err != nil {
 			err = fmt.Errorf("%w; GitHub too: %w", first, err)
