@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=MeshFlash
+Exec=@BIN@ --screen
+Terminal=false
+Icon=share/images/meshflash_100.png
+Type=Application
