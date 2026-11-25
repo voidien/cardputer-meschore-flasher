@@ -1,0 +1,10 @@
+Flashing Repeater v1.18.0              …
+Seeed Studio Xiao nRF52 WIO on ttyACM0
+✓ 2 earlier steps
+▸ Writing 212 of 361 KB · 59% (0:38)
+
+Don't unplug the board.
+Stop now? The board will have no working
+firmware until it's flashed again, and
+meshflash quits.
+y yes  any other key no

@@ -1,0 +1,10 @@
+Flashing stopped                       ○
+Writing went on for 38 s, the board
+answering every frame, until frame 212
+had no answer.
+Its app is erased.
+Press r; meshflash then asks you to
+press reset twice quickly.
+Press r to try again: the file is saved,
+so no Wi-Fi is needed.
+r retry  j/k more  esc back  ? help

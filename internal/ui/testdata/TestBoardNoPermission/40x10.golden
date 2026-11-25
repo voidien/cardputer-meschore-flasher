@@ -1,0 +1,10 @@
+meshflash                              ●
+▸ ttyACM0 · WisCore RAK4631… (239a:8029)
+  Could be one of 5 boards.
+
+Serial ports need the dialout group. Run
+these once:
+sudo usermod -aG dialout void
+sudo reboot
+Catalog from 24 Nov: newest v1.18.0
+enter choose  u update  c files  ? help

@@ -1,0 +1,10 @@
+Help                                   ●
+Keys
+u              update (ESP32: keeps
+               identity, contacts,
+               pairing)
+w              full wipe (ESP32: erases
+               everything)
+y              flash (downloads first if
+               needed)
+j/k scroll  space page  other keys back

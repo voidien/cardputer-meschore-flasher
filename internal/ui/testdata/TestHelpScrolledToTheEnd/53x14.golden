@@ -1,0 +1,14 @@
+Help                                                ●
+Reads the messenger's radio from
+~/.config/mesh/config.json; never writes it.
+Holding Tab 3 s locks meshflash: every key is then
+ignored but the unlock (any key wakes the screen,
+then Tab, then Enter), and a flash or setup carries
+on. Nothing locks by itself. Holding Esc 3 s still
+ends meshflash, locked or not (the launcher does
+that): a flash or setup under way stops the safe way,
+and screen.log says what the board is left with.
+Serial ports need the dialout group. Run these once:
+sudo usermod -aG dialout void
+sudo reboot
+j/k scroll  space page  any other key back

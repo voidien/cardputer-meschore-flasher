@@ -1,0 +1,10 @@
+Not flashed                                 ○
+The board isn't plugged in.
+Nothing was sent to the board: it still has
+its old firmware.
+Plug it in and press r.
+Press r to try again: the file is saved, so
+no Wi-Fi is needed.
+
+
+r retry  esc back  ? help

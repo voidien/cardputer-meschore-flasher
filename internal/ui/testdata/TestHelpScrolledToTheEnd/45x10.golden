@@ -1,0 +1,10 @@
+Help                                        ●
+locked or not (the launcher does that): a
+flash or setup under way stops the safe way,
+and screen.log says what the board is left
+with.
+Serial ports need the dialout group. Run
+these once:
+sudo usermod -aG dialout void
+sudo reboot
+j/k scroll  space page  any other key back

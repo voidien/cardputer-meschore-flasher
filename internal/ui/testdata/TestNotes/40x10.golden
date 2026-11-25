@@ -1,0 +1,10 @@
+Notes · v1.14.1                        ●
+Added support for new GAT562 Mesh
+Tracker Pro device in #1980
+Added LNA toggle CLI commands
+radio.rxgain on and radio.rxgain off in
+#1653
+Added MCU temperature to telemetry
+responses from room servers in #2052
+Migrated Heltec Tracker v2 to KCT8103L
+j/k scroll  space page  esc back  ? help

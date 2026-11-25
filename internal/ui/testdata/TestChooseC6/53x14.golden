@@ -1,0 +1,14 @@
+Which board is on ttyACM0?                          ●
+  Elecrow ThinkNode M6 · nRF52
+  Elecrow ThinkNode M7
+  Elecrow ThinkNode M9
+  UnitEng Nano G2 Ultra · nRF52
+  Muzi Works R1 Neo · nRF52
+  ProMicro nrf52 (faketec) · nRF52
+  RPI Pico W (rp2040) + WaveShare SX… · download only
+  RPI Pico W (rp2350) + WaveShare SX… · download only
+  LilyGo T-Lora C6 · ESP32-C6
+▸ Seeed Studio Xiao C6 · ESP32-C6
+Seeed Studio Xiao C6 has an ESP32-C6, which meshflash
+can't flash.
+j/k move  enter pick  f find  ? help

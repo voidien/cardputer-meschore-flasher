@@ -1,0 +1,14 @@
+Flashing stopped                                    ○
+Into the bootloader with the 1200-baud touch, then
+the erase (10 s).
+Writing went on for 38 s, the board answering every
+frame, until frame 212 had no answer.
+It was sent again twice, with no answer either time,
+and then the port went away.
+Its app is erased.
+Press r; meshflash then asks you to press reset twice
+quickly.
+Press r to try again: the file is saved, so no Wi-Fi
+is needed.
+
+r retry  esc back  ? help

@@ -1,0 +1,14 @@
+Help                                                ●
+Keys
+j/k            move
+enter          pick this board
+f              find by name: type to filter every
+               group; enter keeps it, esc clears it,
+               backspace deletes
+esc            back
+hold tab       lock the screen (3 s); tab then enter
+               unlocks
+Ctrl+C         quit, from anywhere (asks first while
+               flashing; a setup stops where it is)
+
+j/k scroll  space page  any other key back

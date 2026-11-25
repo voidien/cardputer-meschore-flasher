@@ -1,0 +1,10 @@
+Flashed                                     ●
+The board checked the CRC and its bootloader
+took the image.
+It came back on USB (ttyACM0).
+meshflash can't ask this firmware its
+version.
+
+
+
+enter done  ? help

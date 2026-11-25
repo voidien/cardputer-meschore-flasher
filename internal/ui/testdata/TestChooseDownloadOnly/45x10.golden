@@ -1,0 +1,10 @@
+Which board is on ttyACM0?                  ●
+  Elecrow ThinkNode M9
+  UnitEng Nano G2 Ultra · nRF52
+  Muzi Works R1 Neo · nRF52
+  ProMicro nrf52 (faketec) · nRF52
+▸ RPI Pico W (rp2040) + Wave… · download only
+RPI Pico W (rp2040) + WaveShare SX1262 is
+download only: it takes a .uf2 file copied
+onto it, which meshflash doesn't do.
+j/k move  enter pick  f find  ? help

@@ -1,0 +1,14 @@
+Flashing stopped                                    ●
+Wrote 361 KB at 0x10000 and read it back.
+Written, but the flash doesn't match the file.
+Flash it again; if it fails the same way, try a full
+wipe.
+Press r to try again: the file is saved, so no Wi-Fi
+is needed.
+
+
+
+
+
+
+r retry  esc back  ? help

@@ -1,0 +1,10 @@
+Flashing stopped                            ●
+The board checked the CRC and came back on
+USB (ttyACM0).
+It runs v1.17.1, not the version just
+flashed: the bootloader most likely refused
+the image.
+Press reset twice quickly, then flash again.
+Press r to try again: the file is saved, so
+no Wi-Fi is needed.
+r retry  esc back  ? help

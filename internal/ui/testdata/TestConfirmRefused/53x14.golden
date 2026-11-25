@@ -1,0 +1,14 @@
+Flash this?                                         ●
+Seeed Studio Xiao nRF52 WIO on ttyACM0 (repeater
+1.17.1)
+Repeater v1.18.0 · 361 KB · update
+Keeps identity, contacts and pairing.
+The file needs SoftDevice S140 6.1.1 and this board
+has S140 7.3.0: its bootloader would refuse it and
+erase the app.
+
+
+
+
+
+esc back  ? help

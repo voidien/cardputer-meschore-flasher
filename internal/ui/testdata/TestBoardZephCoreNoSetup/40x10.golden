@@ -1,0 +1,10 @@
+meshflash                              ●
+▸ ttyACM0 · WisCore RAK4631… (239a:8029)
+  Could be one of 5 boards. Running
+  repeater v1.18.2: ZephCore: meshflash
+  sets up only MeshCore's own repeater
+  and room-server firmware.
+Catalog from 24 Nov: newest v1.18.0
+s sets up a repeater or room server;
+this board didn't answer as one.
+enter choose  u update  c files  ? help

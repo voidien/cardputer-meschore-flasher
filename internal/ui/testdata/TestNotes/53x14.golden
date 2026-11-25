@@ -1,0 +1,14 @@
+Notes · v1.14.1                                     ●
+radio.rxgain off in #1653
+Added MCU temperature to telemetry responses from
+room servers in #2052
+Migrated Heltec Tracker v2 to KCT8103L in #1936
+Nodes with GPS enabled will now auto sync time every
+30 minutes in #1350
+Fixed bug where some queued packets would not get
+transmit in #1877
+Fixed bug where automatic adverts were not using the
+configured multibyte path setting in
+https://github.com/meshcore-dev/MeshCore/commit/fcfdc
+5fc5b1e0cf81b4ca2dfbc51d714f3eb1ead
+j/k scroll  space page  esc back  ? help

@@ -1,0 +1,10 @@
+Which board is on ttyACM0?             ●
+  GAT-IoT GAT562 30s
+  Heltec Vision Master E213 · ESP32
+  Heltec Vision Master E290 · ESP32
+  Heltec v2 · ESP32
+  Heltec v3 · ESP32
+▸ Heltec v4 · ESP32
+Heltec v4 is an ESP32 board, and this
+port is an nRF52's.
+j/k move  enter pick  f find  ? help

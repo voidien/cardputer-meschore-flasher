@@ -1,0 +1,10 @@
+Flashing Repeater v1.18.0                   …
+Seeed Studio Xiao nRF52 WIO on ttyACM0
+✓ 4 earlier steps
+✓ Back on USB (ttyACM0)
+✓ Running v1.18.0
+✓ Back to 115200 baud
+▸ Checking it answers as a repeater (0:03)
+
+Don't unplug the board.
+esc stop  ? help

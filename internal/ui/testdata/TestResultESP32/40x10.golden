@@ -1,0 +1,10 @@
+Flashed                                ●
+Wrote
+heltec_v4_repeater-v1.18.0-81dbae5.bin
+(361 KB) at 0x10000, keeping identity,
+contacts and pairing.
+Checked: the MD5 of the flash matches
+the file.
+It restarted and is back on USB
+Press s to set it up.
+s set up  j/k more  enter done  ? help
