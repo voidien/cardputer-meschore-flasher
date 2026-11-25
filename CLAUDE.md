@@ -18,9 +18,18 @@ S1–S38), the guide (`docs/making-apps.md`) and the device facts (`docs/device.
 
 ```bash
 export GOTOOLCHAIN=go1.25.4   # if the local Go is older
-make test          # gofmt check, go vet (host and linux/arm64), go test -race ./... — no network, no serial ports
+make test          # gofmt check, go vet (host, linux/arm64, -tags demo), go test -race ./..., and the release binary
+                   # linking no fake world and no test code — no network, no serial ports
 make reference     # re-record the web flasher's JavaScript in Node (needs Node 22 and a flasher checkout; see reference/)
+make demo          # dist/meshflash-demo: the screens over a fake world (its own folders, no network, no serial ports)
+make run-small     # the demo build in a 45×10 terminal (the CLI app's grid); never the real binary on a PC
+make icon          # redraw packaging/meshflash_100.png (needs Pillow); show the owner before committing it (S33)
+make build-arm64   # dist/meshflash for the device; make deploy and make install-desktop are run with the owner (Phase 3)
 ```
+
+The PC run into a file (no LCD): `dist/meshflash-demo --screen --framebuffer <file> --framebuffer-sys <folder with
+virtual_size 320,170 and bits_per_pixel 16> --keyboard <a FIFO of evdev key events> --font <a 6×12 PSF>`, with `HOME`
+set to a throwaway folder. The demo refuses any `--framebuffer` that isn't a regular file.
 
 ## Hard rules
 
