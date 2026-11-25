@@ -201,3 +201,64 @@ func TestTouchThenFlash(t *testing.T) {
 		t.Errorf("sleeps %s", got)
 	}
 }
+
+// stopAtSleep is a clock that stops a context at its at-th Sleep, as an owner's stop landing in that wait.
+type stopAtSleep struct {
+	serialport.Clock
+	stop   func()
+	at, n  int
+	sleeps []time.Duration
+}
+
+func (c *stopAtSleep) Sleep(d time.Duration) {
+	c.n++
+	c.sleeps = append(c.sleeps, d)
+	if c.n == c.at {
+		c.stop()
+	}
+	c.Clock.Sleep(d)
+}
+
+// TouchContext stopped before DTR drops sets the line back to 115200 first, so the close resets nothing and the tty
+// isn't left at 1200; stopped in the wait after, it returns at once, the board touched. Its waits look at the context
+// every PollInterval at most.
+func TestTouchContextStops(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		at      int
+		touched bool
+	}{{"before DTR drops", 1, false}, {"in the wait after", 2, true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			log := &serialport.Log{}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vclock := serialport.NewVirtualClock(log)
+			clock := &stopAtSleep{Clock: vclock, stop: cancel, at: tc.at}
+			app := &FakeApp{}
+			var fake *serialport.Fake
+			open := func(path string, o serialport.Options) (serialport.Port, error) {
+				fake = serialport.NewFake(app, vclock, log, o)
+				app.Port = fake
+				return fake, nil
+			}
+			err := TouchContext(ctx, open, "/dev/ttyACM0", clock)
+			if !errors.Is(err, context.Canceled) || errors.Is(err, ErrTouchStopped) == tc.touched {
+				t.Fatalf("got %v", err)
+			}
+			if app.Reset() != tc.touched {
+				t.Errorf("the app reset: %v", app.Reset())
+			}
+			if _, _, baud, closed := fake.State(); !closed || !tc.touched && baud != 115200 {
+				t.Errorf("closed %v at %d baud", closed, baud)
+			}
+			for _, d := range clock.sleeps {
+				if d > PollInterval {
+					t.Errorf("a wait of %v doesn't look at the context in time", d)
+				}
+			}
+			if len(clock.sleeps) != tc.at {
+				t.Errorf("waited %v after the stop", clock.sleeps[tc.at:])
+			}
+		})
+	}
+}

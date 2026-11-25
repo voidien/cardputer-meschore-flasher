@@ -44,21 +44,73 @@ const (
 // serialport.Open always does, and the DFU session opens at DFUBaud. A board already in its bootloader ignores
 // the touch (the bootloader has no line-state handler): use it as it is.
 func Touch(open serialport.Opener, path string, clock serialport.Clock) error {
+	return touch(nil, open, path, clock)
+}
+
+// ErrTouchStopped means a TouchContext was stopped before DTR dropped: the line was set back to 115200 baud first,
+// so the close sent the board nothing it takes for the touch, and the tty isn't left at 1200 baud.
+var ErrTouchStopped = errors.New("nrfdfu: stopped before the 1200-baud touch")
+
+// TouchContext is Touch, stopped by ctx (meshflash's own, not dfu.js's): its waits are cut into PollInterval steps
+// so a stop is seen within one. Before DTR drops it sets the line back to 115200 baud and closes, and returns
+// ErrTouchStopped (with ctx's error): the board is untouched. Once DTR has dropped the board resets all the same, so
+// a stop during the wait after returns ctx's error at once: it may be in its bootloader now. A ctx that can never
+// end (context.Background) waits as Touch does, in one sleep each, as the reference recordings have it.
+func TouchContext(ctx context.Context, open serialport.Opener, path string, clock serialport.Clock) error {
+	return touch(ctx, open, path, clock)
+}
+
+// touch is Touch, and TouchContext when ctx can end.
+func touch(ctx context.Context, open serialport.Opener, path string, clock serialport.Clock) error {
+	if ctx != nil && ctx.Done() == nil {
+		ctx = nil
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return fmt.Errorf("%w: %w", ErrTouchStopped, ctx.Err())
+	}
 	port, err := open(path, serialport.Options{Baud: TouchBaud, Exclusive: true})
 	if err != nil {
 		return fmt.Errorf("nrfdfu: the 1200-baud touch couldn't open %s: %w", path, err)
 	}
-	clock.Sleep(TouchOpenWait)
+	if err := touchWait(ctx, clock, TouchOpenWait); err != nil {
+		// Not yet touched: 115200 again before the close, whose DTR drop at 1200 baud would be the touch.
+		if port.SetBaud(115200) == nil {
+			_ = port.Close()
+			return fmt.Errorf("%w: %w", ErrTouchStopped, err)
+		}
+		// The speed didn't change, so the close is the touch: carry on as one, stopped after it.
+		_ = port.Close()
+		return fmt.Errorf("nrfdfu: stopped as the 1200-baud touch was made: %w", err)
+	}
 	dtrErr := port.SetDTR(false)
 	// Close whatever happened: the close at 1200 baud is itself the touch's fallback (HUPCL drops DTR on the last
 	// close), and a port must never be left open at 1200 baud. Its error is of no use: the board resetting under
 	// it is the expected outcome.
 	_ = port.Close()
-	clock.Sleep(TouchResetWait)
+	if err := touchWait(ctx, clock, TouchResetWait); err != nil {
+		return fmt.Errorf("nrfdfu: stopped after the 1200-baud touch: %w", err)
+	}
 	if dtrErr != nil && !errors.Is(dtrErr, serialport.ErrGone) {
 		return fmt.Errorf("nrfdfu: the 1200-baud touch couldn't drop DTR on %s: %w", path, dtrErr)
 	}
 	return nil
+}
+
+// touchWait sleeps d on clock, in PollInterval steps that look at ctx when it can end (nil: one sleep).
+func touchWait(ctx context.Context, clock serialport.Clock, d time.Duration) error {
+	if ctx == nil {
+		clock.Sleep(d)
+		return nil
+	}
+	for d > 0 {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		step := min(d, PollInterval)
+		clock.Sleep(step)
+		d -= step
+	}
+	return ctx.Err()
 }
 
 // How long to wait for a port, and how often to look (SPEC.md 6.3; docs/meshcore-flashing.md 5.2 and 5.7).

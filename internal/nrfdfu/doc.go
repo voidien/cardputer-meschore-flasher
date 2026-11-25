@@ -37,6 +37,9 @@
 //   - The touch drops DTR itself, at 1200 baud, before closing, and opens the port exclusively: on Linux a close
 //     drops DTR only when it is the last one, so with anything else holding the port dfu.js's open-and-close would
 //     do nothing (Touch). dfu.js never touches DTR.
+//   - TouchContext is the touch with a stop: its waits are cut into 250 ms steps that look at the context, and a
+//     stop before DTR drops sets the line back to 115200 before the close, so the board is never touched and its tty
+//     isn't left at 1200 baud. Touch itself sleeps as dfu.js does, once each.
 //   - The caller finds the bootloader's port itself and waits for it (WaitForPort, every 250 ms); in the web flasher
 //     the owner picks it in the browser's port chooser, twice.
 //   - A frame whose acknowledgement doesn't come within 5 s is sent again, the same bytes with the same sequence
