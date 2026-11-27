@@ -103,7 +103,7 @@ func TestPSF1(t *testing.T) {
 func TestStandInsOnlyForTheSizeTheyreDrawnFor(t *testing.T) {
 	f := testFont(t)
 	f.AddStandIns()
-	for _, r := range "○✎" {
+	for _, r := range "○✎✓" {
 		if !f.Has(r) || len(f.Glyph(r)) != 12 {
 			t.Errorf("%q has no stand-in", r)
 		}

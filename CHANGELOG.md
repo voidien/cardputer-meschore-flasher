@@ -16,6 +16,8 @@
   update that failed, and after a quit, an Esc hold or a crash, what a board was left with and how to recover it.
 - Installing: `make build-arm64`, `make deploy` (no `sudo`) and `make install-desktop` (the home-screen entry
   "MeshFlash" and its icon: a green LoRa board with its antenna and a lightning bolt, on a teal tile).
+- On the CardputerZero's LCD, meshflash draws its own ✓, ○ and ✎, which the device's Terminus font lacks, so a
+  finished step shows "✓ Erased", never "? Erased".
 - A demo build for a PC, `make demo` and `make run-small`: the same screens over fake boards, with no network and no
   serial ports; it never draws on a real screen.
 - `--screen-test` names meshflash and shows the characters its screens use; `--backlight-sys` (for testing); an

@@ -4,7 +4,7 @@ meshflash --screen draws a grid of cells in a PSF bitmap font, centred on the LC
 each cell one colour on another. This finds the grid the same way, and for each cell tries each of its colours as the
 background: the pixels that differ make a bitmap, which is looked up among the font's glyphs. The font is the one the
 picture was drawn in (on the CardputerZero, a copy of /usr/share/consolefonts/Uni2-Terminus12x6.psf.gz), PSF1 or PSF2,
-gzipped or not. Like internal/screen it adds its two stand-ins for a 6x12 font that lacks them (font.go, AddStandIns),
+gzipped or not. Like internal/screen it adds its stand-ins for a 6x12 font that lacks them (font.go, AddStandIns),
 and a character the font lacks is drawn as the font's "?", so it reads back as "?". A cell that matches nothing
 reads as "¤" (the launcher's home screen, say, which isn't a text grid).
 
@@ -32,6 +32,8 @@ STAND_INS = {
           "#....#", ".#..#.", "..##..", "......", "......", "......"],
     "✎": ["......", "....#.", "...#.#", "..#.#.", "..##..", ".#.#..",
           ".##...", ".#....", "#.....", "......", "......", "......"],
+    "✓": ["......", "......", "......", "......", ".....#", "....#.",
+          "....#.", "#..#..", ".#.#..", "..#...", "......", "......"],
 }
 
 

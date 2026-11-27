@@ -213,7 +213,9 @@ func (f *Font) Glyph(r rune) []byte {
 }
 
 // AddStandIns draws the characters the client shows that Terminus 6×12 lacks (docs/device.md, "Smaller text"): the
-// pen in "✎ written by you" and the offline mark ○. Only for a 6×12 font; another size keeps its "?".
+// pen in "✎ written by you", the offline mark ○, and the done mark ✓ (as in "✓ Erased (10 s)"), which the device's
+// Uni2-Terminus12x6 turned out to lack as well (Phase 3's run into a file, 27 Nov 2026). Only for a 6×12 font;
+// another size keeps its "?".
 func (f *Font) AddStandIns() {
 	if f.W != 6 || f.H != 12 {
 		return
@@ -244,6 +246,21 @@ func (f *Font) AddStandIns() {
 			".#....",
 			"#.....",
 			"......",
+			"......",
+			"......",
+		),
+		// Terminus's own v drawn as a check: two-pixel steps, on the baseline of its x-height (rows 4 to 9).
+		'✓': rows6(
+			"......",
+			"......",
+			"......",
+			"......",
+			".....#",
+			"....#.",
+			"....#.",
+			"#..#..",
+			".#.#..",
+			"..#...",
 			"......",
 			"......",
 		),

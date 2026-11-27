@@ -119,7 +119,7 @@ No board plugged in yet. This is the first time meshflash draws on the real scre
 | --- | --- |
 | Peak memory (VmHWM) under 40 MB (S9) | step 5's run (no board), and `make device-mem` after a real flash and setup (step 9) |
 | `/proc/device-tree/model` names "Raspberry Pi Compute Module 0", so meshflash knows the Zero (and its battery) | step 2: the text and its bytes (it ends in a NUL) |
-| Every character the screens use draws in Terminus (or meshflash's stand-ins for ○ ✎), none as "?" | step 5's test page check |
+| Every character the screens use draws in Terminus (or meshflash's stand-ins for ○ ✎ ✓), none as "?" | step 5's test page check |
 | Whether void may write the backlight, and whether the lock's dark screen switches it off or only draws black | step 2 (permissions), step 7 (seen), `screen.log` |
 | How the CLI app repeats a held key, against meshflash's 0.5 s rules for a held Tab (lock), Esc and y | step 8, `keyrate.py` |
 | An ESP32-S3 on USB-Serial-JTAG (the Heltec v4) keeping its port across the reset into its ROM, and flashing | step 9 |
