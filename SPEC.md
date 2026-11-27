@@ -692,7 +692,7 @@ The Phase 2 plan's questions (`docs/phase2-design.md` section 16), answered 25 N
 | A crash, or the CLI app's terminal closing, mid-flash (19) | **let the flash finish** with no screen (up to about 3 minutes), how it ended written to `screen.log` |
 | nRF52 boards whose SoftDevice the catalog doesn't name (20) | **Confirm says so and asks a second `y`**, as for a low battery |
 | A screen lock (asked for with 9) | **hold Tab 3 s to lock**, on every screen, as the CardputerZero's home screen does; locked, every key is ignored but the unlock |
-| The lock's look | **dark a few seconds after locking** (and after each wake); any key lights a lock page: the status line, what is running ("Flashing · 42%", "Setting up · step 4 of 20", or the screen's name) and "Tab then Enter to unlock"; the backlight off if meshflash may (checked in Phase 3), else drawn black |
+| The lock's look | **dark a few seconds after locking** (and after each wake); any key lights a lock page: the status line, what is running ("Flashing · 42%", "Setting up · step 4 of 20", or the screen's name) and "Tab then Enter to unlock"; the backlight off if meshflash may (it may on the device: Phase 3, 27 Nov 2026), else drawn black |
 | Unlocking | **as the home screen**: any key wakes the screen, then Tab, then Enter |
 | Auto-lock | **none**: it locks only on a Tab hold |
 
@@ -722,6 +722,8 @@ The device phase's questions (Phase 3), answered 25 and 27 Nov 2026:
 | Who runs the commands, with a Claude session on the T14 (27 Nov) | **Claude runs** git, `make test` and the read-only `make device-check`, `device-shot`, `device-mem` and `device-logs`, and the writes without `sudo`, `make deploy`, `device-tools` and `device-run`, each only after the owner says go for it, with them there (`device-run` only once they say every board is unplugged); every `sudo` (`dialout`, `make install-desktop`), `ssh-copy-id`, anything on the LCD and any real board stay the owner's, done with the owner watching. Before each command, Claude says what it does and what it touches |
 | CLAUDE.md's Commands (27 Nov) | **updated**: the `make device-*` targets |
 | ✓, which the device's Terminus 6×12 lacks (step 5's run showed it as "?") (27 Nov) | **meshflash draws its own** on the LCD, as it does ○ and ✎; the CLI app and the PC are unchanged |
+| Design 18.9's lock checks that the runbook left out (27 Nov) | **two added to step 7**: the Esc hold while locked and dark, and `kill -9` while dark (the owner's command) |
+| A kill while the lock has the screen dark (27 Nov) | **a known risk in the README**: on the device the backlight stays off (the home screen stays dark, even on a key) until the Cardputer restarts or `brightness` is written back; no keeper process |
 
 Decided without asking (technical defaults; the owner can overrule any):
 
@@ -860,3 +862,7 @@ Each phase ends with a report and a stop.
 - 27 Nov 2026, Phase 3 step 2: the device's `/proc/device-tree/model` reads "Raspberry Pi Compute Module 0 Rev 1.0"
   and a NUL, so 11's row on how meshflash knows the Zero is confirmed; `void` and the running launcher were already in
   `dialout` (GID 20), so step 3 wasn't needed.
+- 27 Nov 2026, Phase 3 step 7: on the device the lock turns the backlight off (`void` may write `brightness`), wakes
+  and unlocks, and an Esc hold while dark ends meshflash with the home screen lit; a `kill -9` while dark leaves the
+  light off, which the README now gives as a known risk (11's lock's look row and Phase 3 table; `docs/phase3.md` step
+  7 gains the two checks).

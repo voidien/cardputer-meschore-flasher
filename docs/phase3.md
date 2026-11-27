@@ -89,6 +89,12 @@ No board plugged in yet. This is the first time meshflash draws on the real scre
   backlight go off, or was the screen only drawn black? Did waking and unlocking work as described?
 - **Quit:** hold Esc 3 s: meshflash ends and the home screen comes back, drawn cleanly. Tell me what showed.
 - Then Claude runs `make device-logs` on the T14: the run's `screen.log` says whether the backlight could be switched.
+- **Locked and dark, the Esc hold** (`docs/phase2-design.md` 18.9 item 4): hold Tab 3 s, wait for dark, then hold Esc
+  3 s: meshflash ends within 3 s and the home screen comes back lit and clean.
+- **kill -9 while dark** (18.9 item 5, your command): reopen MeshFlash, hold Tab 3 s, wait for dark, then on the T14
+  `ssh CardPuter pkill -9 -x meshflash`. Does the home screen come back lit, or light on a key? On 27 Nov it did
+  neither; `ssh CardPuter 'echo 100 > /sys/class/backlight/backlight/brightness'` (or a restart) brought it back, and
+  the README gives it as a known risk.
 
 ## 8. The CLI app
 

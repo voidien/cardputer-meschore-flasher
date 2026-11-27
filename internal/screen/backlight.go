@@ -15,8 +15,9 @@ import (
 const (
 	// DeviceFramebuffer is the LCD itself. Only a run drawing on it ever touches the real backlight.
 	DeviceFramebuffer = "/dev/fb0"
-	// BacklightClass is where Linux lists backlights. Which one the CardputerZero's LCD has, and whether its user may
-	// write it, is checked on the device (UNVERIFIED: Phase 3, with the owner watching).
+	// BacklightClass is where Linux lists backlights. On the CardputerZero the LCD's is backlight/ (brightness 0 to
+	// 100, root:video, rw-rw-r--), which void, in video, may write: the lock's dark turned it off on the device (Phase
+	// 3, 27 Nov 2026). A SIGKILL while dark leaves it off, and nothing on the device turns it back on (README).
 	BacklightClass = "/sys/class/backlight"
 )
 

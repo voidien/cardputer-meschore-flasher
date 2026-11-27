@@ -60,6 +60,12 @@ setup or a download carries on. The screen goes dark after a few seconds. To unl
 Tab, then Enter. Holding Esc for 3 seconds still ends meshflash, locked or not (the launcher does that); a flash or
 setup under way is stopped the safe way and `~/.cache/meshflash/screen.log` says what the board is left with.
 
+**Known risk: a kill while the screen is dark.** If meshflash is killed while its lock has the screen dark (`kill -9`,
+the system running out of memory, or a fatal error in the Go runtime), the backlight stays off: nothing on the
+Cardputer turns it back on, and the home screen stays dark even when you press a key. Restart the Cardputer, or from
+another computer run `ssh CardPuter 'echo 100 > /sys/class/backlight/backlight/brightness'`. Any other way meshflash
+ends, an Esc hold included, turns the light back on.
+
 meshflash keeps its settings in `~/.config/meshflash` and its catalog, downloaded files and `screen.log` in
 `~/.cache/meshflash`.
 
