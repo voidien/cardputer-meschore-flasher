@@ -43,6 +43,7 @@ check in step 2, both reads).
   new login isn't enough).
 - **Touches:** `/etc/group`, and the device restarts.
 - **Then:** after the reboot, Claude runs `make device-check` again: "launcher … has dialout: yes".
+- **27 Nov 2026:** not needed. Step 2 found `void` and the running launcher already in `dialout`.
 
 ## 4. Deploy
 

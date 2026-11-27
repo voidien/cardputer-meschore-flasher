@@ -1369,7 +1369,7 @@ Why a reboot: the launcher `APPLaunch` is a user unit run by `user@1000.service`
 | `sudo systemctl restart user@1000.service` | yes. It kills all of void's processes; whether APPLaunch returns by itself is **UNVERIFIED** |
 | reboot | **yes, and simplest** |
 
-Check: `grep Groups /proc/$(pgrep -f M5CardputerZero-APPLaunch | head -1)/status` must list the dialout GID. In the app: `os.Getgroups()` and a test `open()`; on `EACCES` show "add void to dialout, then reboot". Look the GID up with `os/user.LookupGroup("dialout")`, which works with `CGO_ENABLED=0` (Debian's GID is normally 20; **UNVERIFIED** here).
+Check: `grep Groups /proc/$(pgrep -f M5CardputerZero-APPLaunch | head -1)/status` must list the dialout GID. In the app: `os.Getgroups()` and a test `open()`; on `EACCES` show "add void to dialout, then reboot". Look the GID up with `os/user.LookupGroup("dialout")`, which works with `CGO_ENABLED=0` (Debian's GID is normally 20, and it is 20 on the owner's device: meshflash's Phase 3, 27 Nov 2026).
 
 **Alternative without a group change:** a udev rule, for example `/etc/udev/rules.d/70-meshcore-flasher.rules`:
 

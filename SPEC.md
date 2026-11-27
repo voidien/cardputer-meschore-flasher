@@ -706,7 +706,7 @@ The Phase 2 report's questions, answered 25 Nov 2026:
 | A stopped setup | **waits up to 1 s** (`nodecli.StopGrace`) for the node's answer to the command already written, so it says truly what the node took |
 | Tab in a Setup text box or pick list | **keeps it and opens the next row**, a text box or a pick list alike, so Tab walks through the form; from the last row it keeps and closes, the focus staying there; Shift+Tab the same backwards, closing on Name; a row that can't open is passed over |
 | Which preset gives the path hash default | **a preset's only when every preset with that radio agrees**; otherwise the last one sent, then the node's own |
-| How meshflash knows it is on the CardputerZero | **`/proc/device-tree/model` naming "Raspberry Pi Compute Module 0"**, to be confirmed on the device in Phase 3 |
+| How meshflash knows it is on the CardputerZero | **`/proc/device-tree/model` naming "Raspberry Pi Compute Module 0"**, confirmed on the device 27 Nov 2026 (Phase 3 step 2: "Raspberry Pi Compute Module 0 Rev 1.0" and a NUL) |
 | A long file name on Download | **on one line, cut with "…"**, its bytes on the next |
 | The other Phase 2 details | **approved as built**: a draft restored by serial says "Restored what was typed for this board."; grey hints under an open text box; a blank latitude, longitude or local advert shows a grey "not sent", and the local advert is typed as "off" or minutes; Help lists the text box's keys under "In a text box:"; Esc on Download stops and goes back at once; the Board's hint with `s` is "enter choose  s set up  u update  ? help", `c` only in Help; the lock page shows what is under way with its time; after a crash a download is stopped at once; an argument that isn't a flag is refused with the usage and exit 2; an unreadable `config.json` is left alone and nothing is remembered until it is fixed; locking from the Setup form lets the hold's first Tab act; the demo's Download names its fake host |
 | The icon as drawn | **approved**: `packaging/meshflash_100.png` (S33) |
@@ -857,3 +857,6 @@ Each phase ends with a report and a stop.
 - 27 Nov 2026: CLAUDE.md's Commands list the `make device-*` targets, as the owner approved (11's Phase 3 table).
 - 27 Nov 2026, Phase 3 step 5: the device's Terminus 6×12 has no ✓; meshflash draws its own on the LCD, as the owner
   chose (11's Phase 3 table).
+- 27 Nov 2026, Phase 3 step 2: the device's `/proc/device-tree/model` reads "Raspberry Pi Compute Module 0 Rev 1.0"
+  and a NUL, so 11's row on how meshflash knows the Zero is confirmed; `void` and the running launcher were already in
+  `dialout` (GID 20), so step 3 wasn't needed.

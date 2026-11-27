@@ -109,9 +109,10 @@ func battery(dir string, zero bool) func() (percent int, ok bool) {
 const deviceModel = "/proc/device-tree/model"
 
 // onZero says the program runs on the CardputerZero, which always has a battery: the device tree at path names its
-// Raspberry Pi Compute Module 0 ("Raspberry Pi Compute Module 0 Rev 1.0", docs/device.md in the kit). It is told by
-// the board, not by whether the fuel gauge is listed, so a gauge that didn't load reads as a battery that can't be
-// read. A PC has no such file, or names another board. One function, so how the Zero is told is easy to change.
+// Raspberry Pi Compute Module 0 ("Raspberry Pi Compute Module 0 Rev 1.0" and a NUL, docs/device.md in the kit, and
+// so it read on the device in Phase 3, 27 Nov 2026). It is told by the board, not by whether the fuel gauge is
+// listed, so a gauge that didn't load reads as a battery that can't be read. A PC has no such file, or names another
+// board. One function, so how the Zero is told is easy to change.
 func onZero(path string) bool {
 	b, err := os.ReadFile(path)
 	return err == nil && strings.Contains(strings.TrimRight(string(b), "\x00\n"), "Raspberry Pi Compute Module 0")
