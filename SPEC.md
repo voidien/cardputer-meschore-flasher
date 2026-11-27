@@ -657,7 +657,7 @@ Asked as multiple choice with a recommendation first; answered 24 Nov 2026.
 | T1000-E warning | **shown only** |
 | Licence | **MIT** |
 | User-Agent | **`Mozilla/5.0 (compatible; meshflash/<version>)`** (departs from S3's exact form) |
-| Device phase | **the owner runs the commands** and pastes back what they print |
+| Device phase | **the owner runs the commands** and pastes back what they print; since 27 Nov a Claude session on the T14 runs some of them (the Phase 3 table below) |
 | Ikoka TX limit with no module named (Phase 1) | **9 dBm**, the safest of its modules |
 | ESP32 full wipe check (Phase 1) | **the catalog's `-merged.bin` name and the saved SHA-256** (no check inside the image, which could refuse ZephCore's) |
 | A node name containing the admin password (Phase 1) | **allowed**: the name is public anyway |
@@ -712,6 +712,15 @@ The Phase 2 report's questions, answered 25 Nov 2026:
 | The icon as drawn | **approved**: `packaging/meshflash_100.png` (S33) |
 | CLAUDE.md's Commands | **updated**: `make test`'s whole check, `make demo`, `make run-small`, `make icon`, `make build-arm64`, and the PC run into a file |
 
+The device phase's questions (Phase 3), answered 25 and 27 Nov 2026:
+
+| Choice | Answer |
+| --- | --- |
+| Where the device phase's scripts live (25 Nov) | **in the repository, run from the T14** (`scripts/device/`, the `make device-*` targets) |
+| How their results come back (25 Nov) | **pasted text and attached PNGs** |
+| Who runs the commands (25 Nov) | **the owner runs everything**: nothing runs on their machines unless they start it (they declined connecting the T14 to the cloud session) |
+| Who runs the commands, with a Claude session on the T14 (27 Nov) | **Claude runs** git, `make test` and the read-only `make device-check`, `device-shot`, `device-mem` and `device-logs`, and the writes without `sudo`, `make deploy`, `device-tools` and `device-run`, each only after the owner says go for it, with them there (`device-run` only once they say every board is unplugged); every `sudo` (`dialout`, `make install-desktop`), `ssh-copy-id`, anything on the LCD and any real board stay the owner's, done with the owner watching. Before each command, Claude says what it does and what it touches |
+
 Decided without asking (technical defaults; the owner can overrule any):
 
 - ESP32 at 115200 baud like the reference (native-USB boards such as the Heltec v4 go at USB speed anyway).
@@ -742,12 +751,14 @@ Each phase ends with a report and a stop.
 2. **Screens, against fakes.** Every screen with goldens at the three sizes; the whole flow end to end against a fake
    board and `httptest`; the icon (shown to the owner first) and the home-screen entry; a run with the screen drawn
    into a file on the PC.
-3. **The device, with the owner.** The owner runs the commands: `dialout`, `make deploy`, a run on the device drawing
-   into a file with keys from a FIFO (S30), memory (S9), what `/proc/device-tree/model` says (6.1); then, with the
-   owner watching, flashing and setting up a real board; the hand-over checklist (`docs/standards.md` in the kit).
-   The owner runs them from the T14, in the order of `docs/phase3.md`, with `make deploy`, `make install-desktop` and
-   the read-only or into-a-file `make device-check`, `device-run`, `device-shot`, `device-mem`, `device-logs` and
-   `device-tools` (`scripts/device/`), each printing a summary to paste.
+3. **The device, with the owner.** `dialout`, `make deploy`, a run on the device drawing into a file with keys from a
+   FIFO (S30), memory (S9), what `/proc/device-tree/model` says (6.1); then, with the owner watching, flashing and
+   setting up a real board; the hand-over checklist (`docs/standards.md` in the kit). They run from the T14, in the
+   order of `docs/phase3.md`, with `make deploy`, `make install-desktop` and the read-only or into-a-file
+   `make device-check`, `device-run`, `device-shot`, `device-mem`, `device-logs` and `device-tools`
+   (`scripts/device/`), each printing a summary. Who runs which is in 11 (27 Nov): a Claude session on the T14 runs
+   the read-only ones, and `make deploy`, `device-tools` and `device-run` on the owner's go; the owner runs every
+   `sudo` (`dialout`, `make install-desktop`) and does everything on the LCD and with the boards.
 
 ## Changes to this spec
 
@@ -836,3 +847,8 @@ Each phase ends with a report and a stop.
   CLAUDE.md change and design 16.1 do.
 - 25 Nov 2026, Phase 3: the owner's decision that the device phase's scripts live in the repository and run from
   the T14, the owner pasting back what they print: 12 names the `make device-*` targets and `docs/phase3.md`.
+- 27 Nov 2026, Phase 3: the work moved from the cloud session to a Claude session on the T14, which the owner let run
+  git, `make test` and the read-only `make device-*` targets, and `make deploy`, `device-tools` and `device-run` on
+  their go; every `sudo`, the LCD and the boards stay the owner's. 11 gains a Phase 3 table holding this answer and
+  the three of 25 Nov, and its "Device phase" row points there; 12 and `docs/phase3.md` (its opening, each step's
+  "Who, where" and who runs each `make device-*`) say who runs what.
