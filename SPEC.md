@@ -720,6 +720,7 @@ The device phase's questions (Phase 3), answered 25 and 27 Nov 2026:
 | How their results come back (25 Nov) | **pasted text and attached PNGs** |
 | Who runs the commands (25 Nov) | **the owner runs everything**: nothing runs on their machines unless they start it (they declined connecting the T14 to the cloud session) |
 | Who runs the commands, with a Claude session on the T14 (27 Nov) | **Claude runs** git, `make test` and the read-only `make device-check`, `device-shot`, `device-mem` and `device-logs`, and the writes without `sudo`, `make deploy`, `device-tools` and `device-run`, each only after the owner says go for it, with them there (`device-run` only once they say every board is unplugged); every `sudo` (`dialout`, `make install-desktop`), `ssh-copy-id`, anything on the LCD and any real board stay the owner's, done with the owner watching. Before each command, Claude says what it does and what it touches |
+| CLAUDE.md's Commands (27 Nov) | **updated**: the `make device-*` targets |
 
 Decided without asking (technical defaults; the owner can overrule any):
 
@@ -852,3 +853,4 @@ Each phase ends with a report and a stop.
   their go; every `sudo`, the LCD and the boards stay the owner's. 11 gains a Phase 3 table holding this answer and
   the three of 25 Nov, and its "Device phase" row points there; 12 and `docs/phase3.md` (its opening, each step's
   "Who, where" and who runs each `make device-*`) say who runs what.
+- 27 Nov 2026: CLAUDE.md's Commands list the `make device-*` targets, as the owner approved (11's Phase 3 table).

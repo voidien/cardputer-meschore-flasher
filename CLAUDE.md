@@ -25,6 +25,13 @@ make demo          # dist/meshflash-demo: the screens over a fake world (its own
 make run-small     # the demo build in a 45×10 terminal (the CLI app's grid); never the real binary on a PC
 make icon          # redraw packaging/meshflash_100.png (needs Pillow); show the owner before committing it (S33)
 make build-arm64   # dist/meshflash for the device; make deploy and make install-desktop are run with the owner (Phase 3)
+make device-check  # Phase 3 (docs/phase3.md), from the T14 over ssh (HOST=CardPuter): read-only facts from both
+make device-run    # the deployed meshflash on the device drawing into a file, keys from a FIFO (S30): only on the
+                   # owner's go, with every board unplugged
+make device-shot   # a picture of the real LCD and its text, while MeshFlash is open (reads /dev/fb0 only)
+make device-mem    # VmHWM and VmRSS of a running meshflash (S9), just before quitting it
+make device-logs   # screen.log, config.json, drafts.json and keyrate.txt from the device
+make device-tools  # copies keyrate.py to ~/meshflash-check/ on the device, for the CLI app (on the owner's go)
 ```
 
 The PC run into a file (no LCD): `dist/meshflash-demo --screen --framebuffer <file> --framebuffer-sys <folder with
