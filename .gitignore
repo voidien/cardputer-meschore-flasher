@@ -5,3 +5,4 @@
 *.out
 /meshflash
 /meshflash-demo
+__pycache__/
